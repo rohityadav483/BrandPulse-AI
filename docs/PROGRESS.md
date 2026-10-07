@@ -1,6 +1,8 @@
 # BrandPulse AI — Development Progress
 
-> **Evidence basis for this version (2026-10-07, Phase 3.2 pass):** the repo was inspected as an extracted zip (`BrandPulse-AI-phase2.zip`, **no `.git` directory** in the upload; local git history created in the Phase 3.1 pass). Verified by running in this pass against a local PostgreSQL 16.15: **675 backend tests passed** with `TEST_DATABASE_URL` (500 passed, 175 skipped without it; Phase 3.1 ended at 405), `ruff check` and `ruff format --check` clean (146 files), `alembic upgrade head` + `alembic check` ("No new upgrade operations detected") + `downgrade 0003` + re-upgrade on a blank database, `export_openapi.py --check`, `validate_golden.py`, `check_type_contract.py`, `compileall`, and four deliberate code mutations (each made the new tests fail). Not run: frontend (untouched), CI, Supabase, any live SerpApi/Groq call.
+> **Phase 4.1 evidence (2026-10-07), read this first:** the Phase 4.1 environment had **no pytest, Ruff, pydantic, SQLAlchemy or network access** (`pip install` failed offline). So in this pass **pytest, `ruff check`, `ruff format --check`, the full backend suite, Alembic and every pre-existing test were NOT run**. What was run: the 185 new NLP tests, executed with a ~40-line stand-in for `pytest` (parametrize, raises, approx) kept outside the repo, `compileall`, an AST check for unused imports, a 100-column line-length check, and three deliberate mutations (each made the new tests fail). The new code is stdlib-only and no existing file outside docs was changed, so Phase 1-3 should be unaffected, but that is **unverified**. First action next session: `cd backend && pytest && ruff check . && ruff format --check .`, fix anything they report.
+>
+> **Evidence basis for the Phase 3.2 figures below (2026-10-07, Phase 3.2 pass):** the repo was inspected as an extracted zip (`BrandPulse-AI-phase2.zip`, **no `.git` directory** in the upload; local git history created in the Phase 3.1 pass). Verified by running in this pass against a local PostgreSQL 16.15: **675 backend tests passed** with `TEST_DATABASE_URL` (500 passed, 175 skipped without it; Phase 3.1 ended at 405), `ruff check` and `ruff format --check` clean (146 files), `alembic upgrade head` + `alembic check` ("No new upgrade operations detected") + `downgrade 0003` + re-upgrade on a blank database, `export_openapi.py --check`, `validate_golden.py`, `check_type_contract.py`, `compileall`, and four deliberate code mutations (each made the new tests fail). Not run: frontend (untouched), CI, Supabase, any live SerpApi/Groq call.
 > Anything not listed as verified below stays **NOT STARTED** or **UNKNOWN**. **First action of any agent with repo access: inspect the repo, then correct this file.** Never assume a planned feature exists.
 
 ---
@@ -8,11 +10,11 @@
 ## 1. Current Status
 
 ```text
-MVP STATUS: PHASES 0-3 IMPLEMENTED (3.1 RawItem persistence, 3.2 processing + content_items); NOT WIRED INTO ANY REAL RUN YET; GOLDEN DEMO READY; EXTERNAL ACCOUNTS PENDING
-CURRENT PHASE: 3 (processing and persistence) COMPLETE at code level; Phase 4 (local NLP) next; Phase 0 external account setup still pending
+MVP STATUS: PHASES 0-3 IMPLEMENTED + PHASE 4.1 (NLP foundation) CODE-COMPLETE; NOTHING WIRED INTO ANY REAL RUN YET; GOLDEN DEMO READY; EXTERNAL ACCOUNTS PENDING
+CURRENT PHASE: 4 (local NLP), step 4.1 done; 4.2 (real model, migration 0005, persistence) not started; Phase 0 external account setup still pending
 CURRENT MILESTONE: M1 (Clickable demo): full golden journey implemented; manual visual check on desktop/mobile pending
 OVERALL COMPLETION: Phases 0-3 implemented (Phase 0 accounts, Phase 1 visual check and Phase 2 live probe pending); Phases 4-10 not started
-LAST UPDATED: 2026-10-07 (Phase 3.2)
+LAST UPDATED: 2026-10-07 (Phase 4.1)
 ```
 ## 2. Executive Summary
 
@@ -20,6 +22,7 @@ LAST UPDATED: 2026-10-07 (Phase 3.2)
 - **Implemented in this pass:** golden Samsung fixture + formula tests, deterministic scoring helpers, Next.js/TypeScript/Tailwind frontend, typed API client with golden mode, golden dashboard → investigation → evidence flow, scoring/design docs, CI workflow, frontend/backend module READMEs, and contract coverage checks.
 - **Phase 3.1 (2026-10-07):** canonical `RawItem` contract hardened, `raw_items` table (migration `0003`), `RawItemRepository`, 108 new tests; Phase 2 verified for the first time on real pytest/Ruff/PostgreSQL (see section 18).
 - **Phase 3.2 (2026-10-07):** `services/processing` (cleaner, normalizer, dates, dedupe, processor), `content_items` table (migration `0004`), `ContentItemRepository`, pipeline stage `process_raw_items` (reads `raw_items`, writes `content_items`), 270 new tests. See section 4.
+- **Phase 4.1 (2026-10-07):** `services/nlp` foundation: rule-based relevance, clause splitting, aspect lexicon (`config/taxonomy.py`), `SentimentAnalyzer` protocol + deterministic stub, 185 new unit tests. No model, DB, API or pipeline change. See section 4 and the verification caveat at the top of this file.
 - **Not externally completed:** Supabase, SerpApi, and Groq account creation/keys. No live calls were made.
 - **Frontend verification (Phase 1 pass):** npm access worked; `npm ci`, typecheck, lint, test (21 passed) and build all pass, and a `next start` smoke test returned 200 on all 8 golden routes.
 - **Can it be demonstrated?** Yes. Golden mode needs only the frontend (see section 7b); no external credits are required.
@@ -31,7 +34,7 @@ LAST UPDATED: 2026-10-07 (Phase 3.2)
 | 1 | Frontend on golden data | IMPLEMENTED (visual check pending) | Landing → analyze (estimate + confirm dialog) → simulated progress → dashboard (health, sentiment, aspect drawer, trend, signal card) → investigation → evidence → competitors; states + 21 frontend tests |
 | 2 | SerpApi layer and budget machinery | IMPLEMENTED (verified by real pytest/Ruff/PG16 on 2026-10-07; no live probe yet) | Migration `0002`, client, cache, budget/usage, estimator, planner, 5 parsers, synthetic fixtures, safe recorder script. See sections 11, 18, 22 |
 | 3 | Processing and persistence | IMPLEMENTED (3.1 + 3.2; not wired into `analysis_pipeline`, verified on local PG 16 only) | **3.1:** `RawItem` contract, `raw_items` (`0003`), `RawItemRepository`. **3.2:** `cleaner`, `normalizer`, `dates`, `dedupe`, `processor`, `content_items` (`0004`), `ContentItemRepository`, stage `pipeline/process_raw_items.py` |
-| 4 | Local NLP | NOT STARTED | — |
+| 4 | Local NLP | IN PROGRESS (4.1 done, not wired) | **4.1:** `relevance`, `clauses`, `aspects` + lexicons in `config/taxonomy.py`, `SentimentAnalyzer` + stub. **Not started:** real HF analyzer, `model_loader`, keywords/topics, migration `0005`, repositories, eval, reuse by `analyzer_version`, pipeline wiring |
 | 5 | Signals, scoring and brand health | NOT STARTED | Formula primitives only; pipeline not implemented |
 | 6 | Analysis pipeline and first real end-to-end | NOT STARTED | — |
 | 7 | Groq and investigation | NOT STARTED | Golden report only; live investigation not implemented |
@@ -54,6 +57,17 @@ Phase 3.2: normalization, dates, deduplication and `content_items` (builds on th
 - Step 8: GitHub Actions CI with PostgreSQL migration service, backend tests/lint, golden validation, frontend typecheck/lint/test/build, and OpenAPI/type-contract checks.
 - Step 9: environment/configuration scaffolding is ready with secrets kept out of the repository. Account creation itself cannot be performed from the codebase.
 - Step 10: progress documentation and README updated to the actual state.
+
+### Phase 4.1 work completed (2026-10-07)
+- Scope: **Phase 4.1 only** (NLP foundation). Phase 4.2 was not started.
+- `services/nlp/relevance.py`: `BrandProfile(brand, products, aliases)`, `detect_relevance` -> `RelevanceResult(is_about_brand, matched_terms, in_title, in_snippet)`; whole-word, case/punctuation-insensitive; nothing derived (aliases must be configured).
+- `services/nlp/clauses.py`: `split_clauses` -> `Clause(text, index, sentence_index)`; sentence split (terminators, ellipsis, `;`, newline; not inside numbers or after `vs.`/`e.g.`), then split on `but`, `however`, `although`, `though`, `even though`, `whereas`, `nevertheless`, `nonetheless`, `on the other hand`, plus `while`/`yet` only after a comma; contrast word dropped; `but also`, `nothing but` etc. not split.
+- `config/taxonomy.py` (was an empty file): aspect lexicons `consumer_electronics` (battery, charging, camera, display, performance, price, design, software, customer_support, audio, connectivity) and `generic`, read-only, `get_lexicon`, `LEXICON_VERSION = "lex-1"`. `services/nlp/aspects.py`: `detect_aspects`, `detect_aspects_in_text`, `terms_in_text`, `aspect_names`; one clause per aspect (PK `(content_id, aspect)`).
+- `services/nlp/sentiment.py`: `SentimentAnalyzer` (runtime-checkable Protocol: `model_name`, `analyze(texts)`), `SentimentResult` (three probabilities, `.score`), `StubSentimentAnalyzer` (keyword counts + negation window, `stub-lexicon-v1`). `services/nlp/textnorm.py`: local `normalize_text` (services must not import `processing`).
+- Tests (all pure, no DB): `test_nlp_relevance.py`, `test_nlp_clauses.py`, `test_nlp_aspects.py` (includes lexicon well-formedness), `test_nlp_sentiment.py`, `test_nlp_foundation.py` (PRD case "camera amazing but battery terrible" -> camera positive, battery negative with the stub; import-layering and no-torch guards). 185 cases.
+- Docs: `services/nlp/README.md` (new), `backend/README.md`, this file.
+- Decisions to confirm: (1) value types are frozen **stdlib dataclasses**, not Pydantic, because nothing crosses an API/DB boundary yet and Pydantic was not installable here; 4.2 can wrap them. (2) Bare `update`, `slow`, `fast`, `support` are not aspect terms (too ambiguous alone), so e.g. "since the update" alone does not create a software aspect. (3) Aspect names `price` and `customer_support` (plan text says "pricing" / "customer support"). (4) `ARCHITECTURE.md` lists `taxonomy.py` under `config/`; lexicons were put there as designed.
+- NOT done on purpose: real BERT/RoBERTa analyzer, `model_loader`, `keywords`, `topics`, migration `0005`, `content_analysis`/`item_aspects`, repositories, pipeline integration, API/OpenAPI changes, SerpApi, Groq, frontend, new dependencies, eval set.
 
 ### Phase 2 work completed (2026-10-07)
 - Tables `serp_cache`, `serp_usage` (migration `0002`, models, DB-backed repositories).
@@ -109,7 +123,7 @@ When this pass began, `services/processing/cleaner.py`, `dates.py` and `normaliz
 | `pipeline/` | `process_raw_items.py` stage implemented (Phase 3.2); `analysis_pipeline`, `investigation_pipeline`, `jobs` still empty stubs (Phase 6) |
 | `services/serpapi` | Planned for Phase 2 |
 | `services/processing` | Implemented (Phase 3.2): cleaner, normalizer, dates, dedupe, processor. `pipeline/process_raw_items.py` wires it to the repositories; not yet called by `analysis_pipeline` |
-| `services/nlp` | Planned for Phase 4 |
+| `services/nlp` | Phase 4.1 implemented: `relevance`, `clauses`, `aspects`, `sentiment` (protocol + stub), `textnorm`; lexicons in `config/taxonomy.py`. `model_loader`, `keywords`, `topics` still empty. Not called by any pipeline |
 | `services/signals`, `services/scoring` | Formula primitives implemented; pipeline/scoring service later |
 | `services/investigation` | Golden DTO display only; live pipeline later |
 | `services/competitors` | Golden display only; real snapshots later |
@@ -240,7 +254,7 @@ Credit plan (250): P2 ≤ 45 · P6 ≤ 40 · P7–8 ≤ 30 · Samsung pre-warm �
 Golden formula anchors are verified: growth `3.3×`, signal score `0.79`, health `73`, investigation confidence `86`, camera net `70`, battery net `-48`, Apple battery net `20`.
 ## 13. NLP Status
 
-All **Planned**. Decided direction (do not change): local BERT-family sentiment model (start with 3-class RoBERTa such as `cardiffnlp/twitter-roberta-base-sentiment-latest`, final choice by eval in Phase 4), CPU torch, margin rule → neutral, deterministic stub for tests, rule-based relevance (brand/product/alias), clause splitting on contrast words, lexicon aspects (consumer electronics + generic), clause-level sentiment, lightweight keywords/topics, reuse by `(content_hash, analyzer_version)`. BERTopic, FAISS, sentence embeddings deferred.
+**Phase 4.1 implemented (not wired, no model):** rule-based relevance, clause splitting, aspect lexicons, `SentimentAnalyzer` protocol and deterministic stub (section 4). **Everything else below is still Planned.** Decided direction (do not change): local BERT-family sentiment model (start with 3-class RoBERTa such as `cardiffnlp/twitter-roberta-base-sentiment-latest`, final choice by eval in Phase 4), CPU torch, margin rule → neutral, deterministic stub for tests, rule-based relevance (brand/product/alias), clause splitting on contrast words, lexicon aspects (consumer electronics + generic), clause-level sentiment, lightweight keywords/topics, reuse by `(content_hash, analyzer_version)`. BERTopic, FAISS, sentence embeddings deferred.
 
 Metrics: eval dataset size UNKNOWN (target 40–60) · accuracy UNKNOWN (target ≥ 75%) · macro-F1 UNKNOWN (target ≥ 0.70) · aspect recall UNKNOWN · memory UNKNOWN · cold start UNKNOWN · throughput UNKNOWN. Selected model: not chosen.
 
@@ -275,6 +289,7 @@ Not implemented: generator, evidence linkage, priority from impact + confidence,
 | Phase 2 tests | Passed on real tooling (297 before Phase 3.1 changes), including `0002` migration tests and `test_serp_repositories.py` on PostgreSQL |
 | Phase 3.1 tests | `unit/test_raw_item_schema.py` (46: contract validation, raw_key, context rules, all four engine fixtures), `integration/test_raw_item_repository.py` (23, PostgreSQL: lossless round trip of every engine fixture, idempotency, filters, exists, atomic batch, cascade), `0003` additions in `test_migrations.py` (columns, defaults, indexes, FKs, every check constraint, downgrade paths). A mutation check (repository dropping `published_raw`) made the round-trip test fail, as it should |
 | Phase 3.2 tests | Unit (no DB): `test_processing_cleaner_normalizer.py` (72), `test_processing_dates.py` (73), `test_processing_dedupe.py` (20), `test_processing_processor.py` (29). PostgreSQL: `test_content_item_repository.py` (15), `test_process_raw_items_pipeline.py` (11), `0004` additions in `test_migrations.py` (columns, defaults, indexes, FKs/cascade, every check constraint, downgrade to `0003`/`0002`). All use the synthetic SerpApi fixtures (14 content items across web, news, forums, YouTube) plus inline synthetic items for duplicates, syndication, bad URLs/titles. Four mutations (near-duplicate threshold, ignoring URL hash, ignoring dates for windows, pipeline ignoring stored hashes) each failed the tests, as they should |
+| Phase 4.1 tests | 185 cases in 5 files (`unit/test_nlp_*.py`), no DB. **Run only with a local pytest stand-in, not real pytest** (see top of file): 185 run, 0 failed. Mutations (dropped `but also` guard, tie-break `>` to `>=`, negation window 2 to 0) failed 1, 1 and 5 cases respectively, then restored. Real pytest, Ruff check/format, the full suite (675 / 500+175 as of Phase 3.2), OpenAPI/golden/type-contract checks and Alembic were **not run** in this pass |
 | Backend lint/format (2026-10-07) | `ruff check .` clean; `ruff format --check .` clean (146 files) |
 | Other checks (2026-10-07) | `export_openapi.py --check` up to date; `validate_golden.py` ok; `check_type_contract.py` ok (75 schemas); `compileall` ok; `alembic upgrade head`, `alembic check`, `downgrade 0003`, re-upgrade ok on a blank DB |
 | Frontend (this pass) | Not touched, not re-run |
@@ -295,11 +310,12 @@ CI has not been executed from this environment because it requires GitHub and np
 
 ```text
 Current branch: main (no other branch exists or was created)
-History: the uploaded zip had no .git, so this pass ran `git init -b main` and made two local commits:
+History: the original upload had no .git; the Phase 3.1 pass ran `git init -b main`. Local commits so far (commit 4 added in the Phase 4.1 pass):
   1. "Baseline: Phases 0-2 as uploaded" (the zip exactly as received)
   2. "Phase 3.1: RawItem contract and persistence"
   3. "Phase 3.2: normalization, dates, deduplication and content_items"
-This history is local to the returned zip and is NOT connected to your own repository's history. If you already have commits, apply commits 2 and 3 as patches (`git format-patch -2`) instead of adopting this .git.
+  4. "Phase 4.1: NLP foundation (relevance, clauses, aspects, SentimentAnalyzer + stub)"
+This history is local to the returned zip and is NOT connected to your own repository's history. If you already have commits, apply commits 2-4 as patches (`git format-patch -3`) instead of adopting this .git.
 Push/tag: not performed
 ```
 ## 21. Environment / Configuration
@@ -310,6 +326,14 @@ Push/tag: not performed
 - `ALLOW_LIVE_SERPAPI=false` remains the required default.
 - Actual Supabase/SerpApi/Groq accounts and keys are still user-owned setup and were not created or contacted here.
 ## 22. Known Issues
+
+```text
+Issue: Phase 4.1 was not verified with real pytest or Ruff.
+Location: backend/tests/unit/test_nlp_*.py, backend/app/services/nlp/, backend/app/config/taxonomy.py
+Impact: The environment had no pytest, Ruff, pydantic, SQLAlchemy or network. The 185 new tests passed only under a local stand-in runner; `ruff check` / `ruff format --check` never ran (format diffs are possible, e.g. in the one-per-line word sets), and the pre-existing suite was not re-run.
+Workaround: None needed to read the code.
+Recommended fix: Run `cd backend && pytest && ruff check . && ruff format --check .` (with TEST_DATABASE_URL for the DB tests) before starting Phase 4.2; fix whatever they report and update section 18.
+```
 
 ```text
 Issue: (RESOLVED 2026-10-07) Phase 2 was unverified with real tooling.

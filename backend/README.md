@@ -35,3 +35,7 @@ Live SerpApi/Groq calls are disabled by default. Do not commit `.env` or any API
 ## Phase 3.2: processing and content_items
 
 `services/processing/` (`cleaner`, `normalizer`, `dates`, `dedupe`, `processor`; see its README) turns `raw_items` into `content_items` (migration `0004`, `app/db/models/content_item.py`, `ContentItemRepository`). The stage `app/pipeline/process_raw_items.py` reads `raw_items`, processes one brand at a time and writes `content_items`; it never calls SerpApi and is safe to re-run. Not yet called from `analysis_pipeline` (Phase 6). No NLP, scoring or signals.
+
+## Phase 4.1: NLP foundation
+
+`services/nlp/` (`relevance`, `clauses`, `aspects`, `sentiment`, `textnorm`; see its README) holds the pure building blocks of the local NLP pipeline: rule-based brand relevance, sentence + contrast-word clause splitting, lexicon aspect detection (lexicons in `app/config/taxonomy.py`), the `SentimentAnalyzer` protocol and a deterministic stub. No model, no database, no pipeline wiring, no API change. The real BERT/RoBERTa analyzer, migration `0005` and persistence are later Phase 4 steps.
