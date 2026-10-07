@@ -145,6 +145,37 @@ Raw SerpApi responses. Replaces Redis for caching.
 
 Index: `(expires_at)` for purge. Purge skips `pinned = true`.
 
+### 5.4a `raw_items`
+Added in Phase 3.1. The canonical `RawItem` (ARCHITECTURE.md section 6) from every content engine (web, news, forums, YouTube), stored exactly as the parser returned it. Staging store between collection and `processing/`: nothing here is cleaned, canonicalised, date-parsed or deduplicated. Phase 3.2 reads these rows and writes `content_items` (5.5). Trends is a time series, not content, and never lands here.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| analysis_id | uuid FK NN | `ON DELETE CASCADE` |
+| brand_id | uuid FK NN | Brand the item was collected for; never cascade-deleted |
+| purpose | content_purpose NN | `collection` or `investigation` |
+| window | window_kind | Set for `collection`, null for `investigation` (check constraint) |
+| source_type | source_type NN | |
+| engine | text NN | Check: `google`, `google_news`, `google_forums`, `youtube` |
+| title | text NN | Verbatim; must contain a non-whitespace character |
+| url | text NN | Verbatim, NOT canonical (that is `content_items.url`); same non-blank rule |
+| snippet | text | Verbatim |
+| author | text | Channel, outlet or poster where available |
+| published_raw | text | String as SerpApi returned it ("3 weeks ago"). Parsed in Phase 3.2 |
+| published_iso | text | `iso_date` string when SerpApi gave one. Parsed in Phase 3.2 |
+| position | smallint | Rank in the response, check `>= 1` |
+| query | text | Query that produced the item |
+| serp_cache_key | text | Trace to `serp_cache`. No foreign key: cache rows expire, raw items must outlive them |
+| metadata | jsonb NN | Engine-specific extras (views, comments, authors, ...). default `{}` |
+| raw_key | text NN | sha256 hex of the verbatim identifying fields (`RawItem.compute_raw_key()`). Idempotency key, not a dedupe key |
+| collected_at | timestamptz NN | default `now()` |
+
+Constraints and indexes:
+- Unique index `uq_raw_items_identity` on `(analysis_id, brand_id, purpose, raw_key)`: persisting the same parsed response twice is a no-op. The same article found by two queries has different keys and stays as two rows for Phase 3.2 to merge.
+- Check `purpose_window_consistent`, `engine_allowed`, `title_not_blank`, `url_not_blank`, `position_positive`, `raw_key_sha256_hex`.
+- Index `(analysis_id, brand_id, window)`, `(analysis_id, source_type)`, `(serp_cache_key)`.
+- `url_hash`, `content_hash` and `dup_group` are NOT here. They are normalization outputs and belong to `content_items` (Phase 3.2).
+
 ### 5.5 `content_items`
 Normalized item from any SerpApi engine.
 
@@ -374,8 +405,8 @@ Monthly used = `sum(credits)` for the current calendar month where `account_labe
 |---|---|
 | POST /analyses | `brands`, `analyses` (queued), `analysis_brands` |
 | planning | windows from `as_of_date`, budget; `analysis_brands` rows with `suggested` role if no competitors given (one Groq call, logged in `llm_calls`) |
-| collecting | `serp_cache`, `serp_usage`, `trend_points`, `analyses.serp_calls_used`, `analyses.live_run` |
-| processing | `content_items` (after clean, normalize, dedupe) |
+| collecting | `serp_cache`, `serp_usage`, `raw_items` (parsed results; wired in Phase 6), `trend_points`, `analyses.serp_calls_used`, `analyses.live_run` |
+| processing | reads `raw_items`; writes `content_items` (after clean, normalize, dedupe) |
 | analyzing | `content_analysis`, `item_aspects` (local model, no network) |
 | detecting | `signals` |
 | snapshotting | `brand_snapshots` (target and each competitor) |
@@ -415,7 +446,8 @@ All writes within one stage happen in one transaction where practical. A failed 
 |---|---|
 | 0 | extensions (`pgcrypto` if needed), enums, `brands`, `analyses`, `analysis_brands` |
 | 2 | `serp_cache` (with `pinned`), `serp_usage` (with `account_label`; `investigation_id` as plain column) |
-| 3 | `content_items` |
+| 3.1 | `raw_items` (migration `0003`) |
+| 3.2 | `content_items` |
 | 4 | `content_analysis`, `item_aspects` |
 | 5 | `trend_points`, `brand_snapshots`, `signals` |
 | 6 | `llm_calls` (`investigation_id` as plain column) |

@@ -32,6 +32,24 @@ class BrandRole(enum.StrEnum):
     suggested = "suggested"
 
 
+class SourceType(enum.StrEnum):
+    web = "web"
+    news = "news"
+    youtube = "youtube"
+    forum = "forum"
+    shopping = "shopping"
+
+
+class WindowKind(enum.StrEnum):
+    baseline = "baseline"
+    current = "current"
+
+
+class ContentPurpose(enum.StrEnum):
+    collection = "collection"
+    investigation = "investigation"
+
+
 def pg_enum(py_enum: type[enum.StrEnum], name: str) -> ENUM:
     """Column type for an existing Postgres enum (the migration owns CREATE TYPE)."""
     return ENUM(

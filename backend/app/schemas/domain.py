@@ -44,6 +44,11 @@ class WindowKind(enum.StrEnum):
     current = "current"
 
 
+class ContentPurpose(enum.StrEnum):
+    collection = "collection"
+    investigation = "investigation"
+
+
 class DateConfidence(enum.StrEnum):
     exact = "exact"
     approximate = "approximate"

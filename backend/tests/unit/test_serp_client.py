@@ -44,9 +44,7 @@ def test_success_sends_engine_and_key_and_stringifies_params():
     client, transport, _ = make(lambda engine, params: ok(GOOD))
     result = client.fetch(SPEC)
     assert result.response == GOOD and result.http_status == 200 and result.attempts == 1
-    assert transport.calls == [
-        {"q": "samsung", "safe": "true", "engine": "google", "api_key": KEY}
-    ]
+    assert transport.calls == [{"q": "samsung", "safe": "true", "engine": "google", "api_key": KEY}]
 
 
 def test_live_switch_off_never_reaches_transport():

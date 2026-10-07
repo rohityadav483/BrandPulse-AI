@@ -42,3 +42,13 @@ versions, a scripted transport and `block_network`.
 
 `pytest tests/unit/test_serp_*.py tests/parsers tests/unit/test_record_serp_fixtures.py`. Each
 module blocks sockets, so a test that tried to go live would fail.
+
+## RawItem contract (Phase 3.1)
+
+`RawItem` (`app/schemas/serp.py`) is the one shape every content parser returns: `source_type`, `engine`, `title`, `url`, `snippet`, `author`, `published_raw`, `published_iso`, `position`, `query`, `serp_cache_key`, `metadata`. Strings are verbatim; parsers do no cleaning, canonical URLs or date parsing.
+
+- **Inputs:** none (value object). Built by `parsers/*`; `parse_response` stamps `query` and `serp_cache_key`.
+- **Validation:** `engine` must be a content engine (Trends is rejected), `source_type` must be the one `ENGINE_SOURCE_TYPE` assigns to the engine, `title` and `url` must not be blank, `position >= 1`. Values are never altered.
+- **`compute_raw_key()`:** sha256 over the verbatim engine, source type, query, cache key, position, URL, title, snippet and dates. It is an idempotency key for persistence, not deduplication: no case folding, URL canonicalisation or whitespace cleanup happens (Phase 3.2).
+- **Persistence:** `RawItemContext` (analysis, brand, purpose, window) + `RawItem[]` go through `db/repositories/raw_item.py` into `raw_items` (docs/DATABASE.md 5.4a). `StoredRawItem` is the row read back.
+- **Failure behavior:** invalid items raise `ValidationError` at construction (parsers already skip such rows and count them in `ParsedResponse.skipped`). A batch write is one transaction: a database constraint violation rolls the whole batch back. Exact repeats are skipped and reported as `duplicates`.

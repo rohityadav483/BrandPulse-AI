@@ -6,13 +6,15 @@ DTO. The pipeline maps `SerpEstimate` onto `EstimateAnalysisResponse` (API.md se
 """
 
 import enum
+import hashlib
+import json
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.schemas.domain import BlockedReason, BrandRole, SourceType, WindowKind
+from app.schemas.domain import BlockedReason, BrandRole, ContentPurpose, SourceType, WindowKind
 
 ParamValue = str | int | float | bool
 
@@ -103,10 +105,16 @@ class SerpPlan(BaseModel):
 
 
 class RawItem(BaseModel):
-    """Normalized item from any content engine. Input to Phase 3 `processing/`.
+    """Canonical item from any content engine (web, news, forums, YouTube). Input to Phase 3.2.
 
-    Parsers do no cleaning, URL canonicalisation or date parsing: `published_raw` is the string
-    SerpApi returned ("3 weeks ago", "07/30/2026, 07:00 AM, +0000 UTC").
+    This is THE contract between `services/serpapi/parsers` and `processing/`. Parsers do no
+    cleaning, URL canonicalisation or date parsing: every string is exactly what SerpApi
+    returned (`published_raw` is "3 weeks ago", "07/30/2026, 07:00 AM, +0000 UTC"). Cleaning,
+    canonical URLs, hashes, date parsing and dedupe are Phase 3.2 work on `RawItem -> ContentItem`.
+
+    Invariants (checked on construction): `engine` is a content engine (not Trends),
+    `source_type` is the one `ENGINE_SOURCE_TYPE` assigns to that engine, `title` and `url` are
+    not blank. Values are never modified by validation.
     """
 
     source_type: SourceType
@@ -117,10 +125,106 @@ class RawItem(BaseModel):
     author: str | None = None
     published_raw: str | None = None
     published_iso: str | None = None
-    position: int | None = None
+    position: int | None = Field(default=None, ge=1)
     query: str | None = None
     serp_cache_key: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("title", "url")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("must not be blank")
+        return value
+
+    @model_validator(mode="after")
+    def _engine_matches_source_type(self) -> Self:
+        expected = ENGINE_SOURCE_TYPE[self.engine]
+        if expected is None:
+            raise ValueError(f"engine {self.engine.value!r} does not produce RawItems")
+        if self.source_type is not expected:
+            raise ValueError(
+                f"engine {self.engine.value!r} yields source_type {expected.value!r}, "
+                f"got {self.source_type.value!r}"
+            )
+        return self
+
+    def compute_raw_key(self) -> str:
+        """Exact-occurrence key: sha256 hex over the verbatim identifying fields.
+
+        Idempotency key for persistence, NOT a deduplication key. It deliberately does no
+        normalisation (no case folding, no URL canonicalisation, no whitespace cleanup): two
+        items get the same key only if SerpApi returned the same occurrence (same engine, query,
+        cached response, position, URL, title, snippet and dates). Re-persisting the same parsed
+        response is therefore a no-op, while the same article found by two queries stays as two
+        raw rows for Phase 3.2 to merge. `author` and `metadata` are not part of the key.
+        """
+        payload = json.dumps(
+            [
+                self.engine.value,
+                self.source_type.value,
+                self.query,
+                self.serp_cache_key,
+                self.position,
+                self.url,
+                self.title,
+                self.snippet,
+                self.published_raw,
+                self.published_iso,
+            ],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+class RawItemContext(BaseModel):
+    """Where a batch of RawItems was collected: which analysis, brand, purpose and window.
+
+    Shared by every item of one parsed SerpApi response (a planned call has exactly one brand
+    and one window). Mirrors the rule in DATABASE.md section 5.5: `window` is null for
+    investigation items and set for collection items.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    analysis_id: UUID
+    brand_id: UUID
+    purpose: ContentPurpose = ContentPurpose.collection
+    window: WindowKind | None = None
+    collected_at: datetime | None = None  # None: the database stamps `now()`
+
+    @model_validator(mode="after")
+    def _window_matches_purpose(self) -> Self:
+        if self.purpose is ContentPurpose.collection and self.window is None:
+            raise ValueError("collection items need a window (baseline or current)")
+        if self.purpose is ContentPurpose.investigation and self.window is not None:
+            raise ValueError("investigation items have no window")
+        return self
+
+
+class StoredRawItem(RawItem):
+    """A persisted `raw_items` row: the RawItem plus its identity and collection context."""
+
+    id: UUID
+    analysis_id: UUID
+    brand_id: UUID
+    purpose: ContentPurpose
+    window: WindowKind | None = None
+    raw_key: str
+    collected_at: datetime
+
+
+class RawItemWriteResult(BaseModel):
+    """Outcome of persisting a batch: rows created vs. skipped as exact repeats."""
+
+    inserted: int
+    duplicates: int
+    inserted_ids: list[UUID] = Field(default_factory=list)
+
+    @property
+    def total(self) -> int:
+        return self.inserted + self.duplicates
 
 
 class TrendPoint(BaseModel):

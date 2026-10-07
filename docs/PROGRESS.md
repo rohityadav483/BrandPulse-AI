@@ -1,6 +1,6 @@
 # BrandPulse AI — Development Progress
 
-> **Evidence basis for this version (2026-10-06):** the repo was inspected as an extracted zip (`BrandPulse-AI-main.zip`, **no `.git` directory**). Verified by running: backend tests (70 passed against a local PostgreSQL 16, incl. 31 migration tests; 39 pass + 31 skip without `TEST_DATABASE_URL`), `ruff check` and `ruff format --check` (clean), `alembic upgrade head` + `alembic check` on a blank database, a real `uvicorn` server answering `/api/v1/health` with `database: ok` against that migrated database, `docs/*.md` (except this file) byte-identical to the uploaded copies. Not verifiable here: git state, Supabase itself (pooler, RLS), CI, accounts/keys.
+> **Evidence basis for this version (2026-10-07, Phase 3.1 pass):** the repo was inspected as an extracted zip (`BrandPulse-AI-phase2.zip`, **no `.git` directory**). Verified by running in this pass against a local PostgreSQL 16.15: **Phase 2 baseline before any change: 297 passed, `ruff check` clean, `alembic upgrade head` ok** (this is the first real-tooling run of Phase 2); **after Phase 3.1: 405 passed** (without `TEST_DATABASE_URL`: 304 passed, 101 skipped), `ruff check` and `ruff format --check` clean, `alembic upgrade head` + `alembic check` ("No new upgrade operations detected") + `downgrade 0002` + re-upgrade on a blank database, `export_openapi.py --check`, `validate_golden.py`, `check_type_contract.py`, `compileall`. Not run: frontend (untouched), CI, Supabase, any live SerpApi/Groq call.
 > Anything not listed as verified below stays **NOT STARTED** or **UNKNOWN**. **First action of any agent with repo access: inspect the repo, then correct this file.** Never assume a planned feature exists.
 
 ---
@@ -8,16 +8,17 @@
 ## 1. Current Status
 
 ```text
-MVP STATUS: PHASES 0-2 IMPLEMENTED IN CODE; GOLDEN DEMO READY; PHASE 2 NOT YET VERIFIED BY REAL pytest/Ruff/PostgreSQL; EXTERNAL ACCOUNTS PENDING
-CURRENT PHASE: 2 (SerpApi layer and budget machinery) IMPLEMENTED, verification pending on a machine with dependencies; Phase 0 external account setup still pending
+MVP STATUS: PHASES 0-2 AND 3.1 IMPLEMENTED; PHASE 3.2 (NORMALIZATION/DEDUPE) NOT STARTED; GOLDEN DEMO READY; EXTERNAL ACCOUNTS PENDING
+CURRENT PHASE: 3 (processing and persistence), sub-step 3.1 (RawItem contract + persistence) DONE; 3.2 next; Phase 0 external account setup still pending
 CURRENT MILESTONE: M1 (Clickable demo): full golden journey implemented; manual visual check on desktop/mobile pending
-OVERALL COMPLETION: Phases 0-2 implemented (Phase 0 accounts, Phase 1 visual check and Phase 2 live probe/verification pending); Phases 3-10 not started
-LAST UPDATED: 2026-10-07
+OVERALL COMPLETION: Phases 0-2 and 3.1 implemented (Phase 0 accounts, Phase 1 visual check and Phase 2 live probe pending); Phase 3.2 and Phases 4-10 not started
+LAST UPDATED: 2026-10-07 (Phase 3.1)
 ```
 ## 2. Executive Summary
 
 - **Works (verified from the user's Windows run):** backend dependencies installed, OpenAPI is current, 155 tests passed and 31 migration tests skipped without `TEST_DATABASE_URL`, Ruff check/format passed, Uvicorn started, and `/api/v1/health` returned 200.
 - **Implemented in this pass:** golden Samsung fixture + formula tests, deterministic scoring helpers, Next.js/TypeScript/Tailwind frontend, typed API client with golden mode, golden dashboard → investigation → evidence flow, scoring/design docs, CI workflow, frontend/backend module READMEs, and contract coverage checks.
+- **Phase 3.1 (2026-10-07):** canonical `RawItem` contract hardened, `raw_items` table (migration `0003`), `RawItemRepository`, 108 new tests; Phase 2 verified for the first time on real pytest/Ruff/PostgreSQL (see section 18).
 - **Not externally completed:** Supabase, SerpApi, and Groq account creation/keys. No live calls were made.
 - **Frontend verification (Phase 1 pass):** npm access worked; `npm ci`, typecheck, lint, test (21 passed) and build all pass, and a `next start` smoke test returned 200 on all 8 golden routes.
 - **Can it be demonstrated?** Yes. Golden mode needs only the frontend (see section 7b); no external credits are required.
@@ -27,8 +28,8 @@ LAST UPDATED: 2026-10-07
 |------|------|--------|------------|
 | 0 | Foundations and contracts | IMPLEMENTED / EXTERNAL SETUP PENDING | Backend contracts, golden fixture, frontend golden flow, docs and CI scaffold are present |
 | 1 | Frontend on golden data | IMPLEMENTED (visual check pending) | Landing → analyze (estimate + confirm dialog) → simulated progress → dashboard (health, sentiment, aspect drawer, trend, signal card) → investigation → evidence → competitors; states + 21 frontend tests |
-| 2 | SerpApi layer and budget machinery | IMPLEMENTED (unverified by real pytest/Ruff/PG; no live probe yet) | Migration `0002`, client, cache, budget/usage, estimator, planner, 5 parsers, synthetic fixtures, safe recorder script. See sections 11, 18, 22 |
-| 3 | Processing and persistence | NOT STARTED | — |
+| 2 | SerpApi layer and budget machinery | IMPLEMENTED (verified by real pytest/Ruff/PG16 on 2026-10-07; no live probe yet) | Migration `0002`, client, cache, budget/usage, estimator, planner, 5 parsers, synthetic fixtures, safe recorder script. See sections 11, 18, 22 |
+| 3 | Processing and persistence | IN PROGRESS (3.1 done, 3.2 not started) | **3.1:** `RawItem` contract, `raw_items` migration `0003`, `RawItemRepository`, tests (section 4). **3.2 (not started):** `cleaner`, `normalizer`, `dates`, `dedupe`, `content_items` migration + repository |
 | 4 | Local NLP | NOT STARTED | — |
 | 5 | Signals, scoring and brand health | NOT STARTED | Formula primitives only; pipeline not implemented |
 | 6 | Analysis pipeline and first real end-to-end | NOT STARTED | — |
@@ -39,10 +40,10 @@ LAST UPDATED: 2026-10-07
 ## 4. Current Phase
 
 ### Goal
-Phase 2: SerpApi layer and budget machinery (cache, usage counting, 250/month guard, estimator, planner, parsers) with no live calls.
+Phase 3.1: RawItem contract and persistence (canonical `RawItem` for all SerpApi content sources, `raw_items` table, repository). Phase 3.2 (normalization, dedupe, `content_items`) is the next step and was deliberately NOT started.
 
 ### Current module
-`backend/app/services/serpapi/` (+ `app/schemas/serp.py`, `app/db/models/serp.py`, `app/db/repositories/serp_*.py`, migration `0002`). Phase 2 code is complete; verification and the live probe are pending.
+`backend/app/schemas/serp.py` (`RawItem`, `RawItemContext`, `StoredRawItem`, `RawItemWriteResult`), `app/db/models/raw_item.py`, `app/db/repositories/raw_item.py`, migration `0003`. Phase 2 (`services/serpapi/`, migration `0002`) is unchanged apart from the `RawItem` validation noted below.
 
 ### Work completed
 - Steps 1-4 remain intact and Step 4 was verified by the user locally.
@@ -60,8 +61,16 @@ Phase 2: SerpApi layer and budget machinery (cache, usage counting, 250/month gu
 - Docs: module README, `docs/SERPAPI_FINDINGS.md` (assumptions to verify), backend README, this file.
 - Phase 0/1 tests changed only where the schema head moved: table set and `0001` -> `0002` assertions.
 
-### Phase 2 verification (see section 18 for exact status)
-- 97 SerpApi-layer tests pass under a throwaway stdlib stand-in for pytest/pydantic (not part of the repo). Real pytest, Ruff, Alembic and PostgreSQL were NOT run: none were installed and the network was off.
+### Phase 3.1 work completed (2026-10-07)
+- `RawItem` (`app/schemas/serp.py`) is now the validated canonical contract: engine must be a content engine (Trends rejected), `source_type` must match `ENGINE_SOURCE_TYPE[engine]`, `title`/`url` not blank, `position >= 1`; values are never modified. New `compute_raw_key()` (sha256 over verbatim identifying fields; idempotency key, not dedupe). New `RawItemContext` (analysis, brand, purpose, window; collection needs a window, investigation has none), `StoredRawItem`, `RawItemWriteResult`.
+- Table `raw_items` (migration `0003`, model `RawItemRow`): verbatim item fields, `published_raw`/`published_iso` kept as strings, `metadata` jsonb, `serp_cache_key` (no FK), `raw_key`, `collected_at`. Unique index `(analysis_id, brand_id, purpose, raw_key)`; indexes `(analysis_id, brand_id, window)`, `(analysis_id, source_type)`, `(serp_cache_key)`; six check constraints; FK `analysis_id` CASCADE, `brand_id` no cascade. Reuses enums from `0001`.
+- `RawItemRepository`: `add`, `add_many` (one transaction, `ON CONFLICT DO NOTHING`, returns inserted/duplicate counts), `get`, `list_for_analysis` (filters, stable order, paging), `count`, `exists`, `existing_keys`.
+- Python enum mirrors added: `ContentPurpose` (domain), `SourceType`/`WindowKind`/`ContentPurpose` (DB models), with parity tests against `docs/DATABASE.md`.
+- Docs: `docs/DATABASE.md` 5.4a + migration plan + lifecycle rows, serpapi README, backend README, this file.
+- NOT done on purpose (Phase 3.2): cleaning, canonical URL, `url_hash`/`content_hash`/`dup_group`, date parsing, window assignment, dedupe, `content_items`. No pipeline wiring (Phase 6). No API/OpenAPI change.
+
+### Phase 2 verification (updated 2026-10-07)
+- Verified in the Phase 3.1 pass on real tooling (pytest 9.1.1, pydantic 2.13.5, SQLAlchemy 2.0.54, Alembic 1.20.0, Ruff 0.16.10, PostgreSQL 16.15): all 297 tests passed before any change, including the Phase 2 migration and repository DB tests; `ruff check` clean. `ruff format --check` reported one diff in `tests/unit/test_serp_client.py`, now reformatted (formatting only). The earlier "97 tests under a shim" evidence is superseded.
 
 ### Verification
 - Golden formula tests: 7 passed in this execution environment.
@@ -85,7 +94,7 @@ Phase 2: SerpApi layer and budget machinery (cache, usage counting, 250/month gu
 | FastAPI (`api/v1`) | App, health, error envelope, 11 contract stubs and schemas implemented |
 | `pipeline/` | Planned for later phases |
 | `services/serpapi` | Planned for Phase 2 |
-| `services/processing` | Planned for Phase 3 |
+| `services/processing` | Planned for Phase 3.2 (stub modules only). `RawItem` input contract + `raw_items` persistence done in 3.1 |
 | `services/nlp` | Planned for Phase 4 |
 | `services/signals`, `services/scoring` | Formula primitives implemented; pipeline/scoring service later |
 | `services/investigation` | Golden DTO display only; live pipeline later |
@@ -134,7 +143,9 @@ Backend (optional): `cd backend && pip install -e ".[dev]" && pytest`; `uvicorn 
 
 **Phase 2 done:** SerpApi layer in `app/services/serpapi/` (cache, budget, usage, estimator, planner, client, fetcher, parsers) plus SerpApi repositories. `/usage` and `/analyses/estimate` stay 501 stubs: wiring them is Phase 6.
 
-**Planned for later phases:** BackgroundTasks jobs, polling/status persistence, analysis pipeline, remaining repositories, NLP, signal detection pipeline, investigation pipeline, competitors, recommendations and Groq.
+**Phase 3.1 done:** validated `RawItem` contract, `raw_items` model/migration, `RawItemRepository` (not yet wired into any pipeline; nothing calls it outside tests).
+
+**Planned for later phases:** Phase 3.2 processing, BackgroundTasks jobs, polling/status persistence, analysis pipeline, remaining repositories, NLP, signal detection pipeline, investigation pipeline, competitors, recommendations and Groq.
 ## 9. API Contract Status
 
 OpenAPI is generated and current. The 12 documented operation IDs/paths are represented; functional business logic is intentionally deferred to later phases.
@@ -157,20 +168,21 @@ OpenAPI is generated and current. The 12 documented operation IDs/paths are repr
 `contracts/openapi.json` is non-empty and checked against the FastAPI export. Frontend DTO types are checked in from the OpenAPI schemas; CI also checks schema coverage.
 ## 10. Database Status
 
-Design: `DATABASE.md` (v2.1). Migration order: P0 brands/analyses/analysis_brands · P2 serp_cache(+pinned), serp_usage(+account_label) · P3 content_items · P4 content_analysis, item_aspects · P5 trend_points, brand_snapshots, signals · P6 llm_calls · P7 investigations, evidence (+FKs from serp_usage/llm_calls) · P8 recommendations.
+Design: `DATABASE.md` (v2.1). Migration order: P0 brands/analyses/analysis_brands · P2 serp_cache(+pinned), serp_usage(+account_label) · P3.1 raw_items · P3.2 content_items · P4 content_analysis, item_aspects · P5 trend_points, brand_snapshots, signals · P6 llm_calls · P7 investigations, evidence (+FKs from serp_usage/llm_calls) · P8 recommendations.
 
 | Table | Created | Migrated | Repository | Used by pipeline | Tested |
 |---|---|---|---|---|---|
 | brands, analyses, analysis_brands | Yes | Yes (`0001`, local PG 16 only) | No | No | Yes (31 migration tests) |
-| serp_cache, serp_usage | Yes (model + migration) | Written as `0002`, NOT yet run on PostgreSQL | Yes (`SerpCacheRepository`, `SerpUsageRepository`) | No (wired in Phase 6) | DB tests written, not run; model tests via shim only |
-| content_items | No | No | No | No | No |
+| serp_cache, serp_usage | Yes | Yes (`0002`, local PG 16 only) | Yes (`SerpCacheRepository`, `SerpUsageRepository`) | No (wired in Phase 6) | Yes (DB tests ran and passed 2026-10-07) |
+| raw_items | Yes (model + migration) | Yes (`0003`, local PG 16 only) | Yes (`RawItemRepository`) | No (wired in Phase 6) | Yes (35 added migration tests (74 total in file, was 39) + 23 repository tests + 46 schema tests) |
+| content_items | No (Phase 3.2) | No | No | No | No |
 | content_analysis, item_aspects | No | No | No | No | No |
 | trend_points, brand_snapshots, signals | No | No | No | No | No |
 | llm_calls | No | No | No | No | No |
 | investigations, evidence | No | No | No | No | No |
 | recommendations | No | No | No | No | No |
 
-Alembic status: set up, head = `0002` (serp_cache, serp_usage); `0001` creates all 17 enums from §3 up front, per §9 "enums" in Phase 0). Migration tests: 31 for `0001` plus 8 new for `0002` (not yet run), run against a blank throwaway PostgreSQL 16 database (skipped unless `TEST_DATABASE_URL` is set). RLS: not applied (Supabase-specific, not part of this migration). DB connectivity: `/health` returned `database: ok` on the migrated local Postgres 16; failure path verified with a refused port (no password logged). Supabase itself: NOT verified. Schema drift: none (`alembic check` and a `compare_metadata` test are clean). `pgcrypto`: not needed (`gen_random_uuid()` is built in on PG 13+).
+Alembic status: set up, head = `0003` (raw_items); `0002` = serp_cache, serp_usage; `0001` creates all 17 enums from §3 up front, per §9 "enums" in Phase 0. Migration tests (74 in `test_migrations.py`, covering `0001`-`0003`, upgrade, downgrade to `0002`/`0001`/base, drift check), run against a blank throwaway PostgreSQL 16 database (skipped unless `TEST_DATABASE_URL` is set). RLS: not applied (Supabase-specific, not part of this migration). DB connectivity: `/health` returned `database: ok` on the migrated local Postgres 16; failure path verified with a refused port (no password logged). Supabase itself: NOT verified. Schema drift: none (`alembic check` and a `compare_metadata` test are clean). `pgcrypto`: not needed (`gen_random_uuid()` is built in on PG 13+).
 
 ## 11. SerpApi Status and Budget
 
@@ -238,16 +250,17 @@ Not implemented: generator, evidence linkage, priority from impact + confidence,
 
 | Category | Status |
 |---|---|
-| Backend baseline | 155 passed, 31 skipped after Phase 0 additions (31 migration tests require TEST_DATABASE_URL) |
+| Backend full suite (2026-10-07) | **405 passed** with `TEST_DATABASE_URL` against local PostgreSQL 16.15; **304 passed, 101 skipped** without it. Before Phase 3.1 the same suite was 297 passed. Includes Phase 0, 1 (backend part), 2 and 3.1 |
 | Golden fixture/formulas | 7 passed in this execution environment |
 | OpenAPI export/drift | Verified by user's Windows run; `openapi.json` up to date |
 | Backend lint/format | Verified by user's Windows run |
 | Frontend typecheck/lint/test/build | Verified in Phase 1 pass: typecheck, lint, 21 vitest tests, build (golden on/off) all pass; CI not executed |
 | Frontend smoke | `next start` returned 200 on `/`, `/analyze`, `/analyze/demo`, `/dashboard/demo`, `/signals/demo-signal-battery`, `/investigate/demo-signal-battery`, `/evidence/demo-investigation`, `/competitors/demo` |
-| Phase 2 SerpApi tests | 97 passed under a throwaway stdlib shim for pytest/pydantic (planner, cache, usage, budget, client, estimator, fetcher, parsers, recorder script). NOT real pytest/pydantic |
-| Phase 2 DB tests | Written, never run: migration `0002` tests in `test_migrations.py`, `test_serp_repositories.py` (need `TEST_DATABASE_URL`), `test_db_models.py` additions |
-| Phase 2 Ruff | NOT run (not installed). Hand-checked: line length <= 100, no unused imports (script scan), import order by eye. `ruff format --check` may still report diffs |
-| Phase 0/1 regression run | NOT re-run this pass. Expect the earlier baseline plus new Phase 2 tests |
+| Phase 2 tests | Passed on real tooling (297 before Phase 3.1 changes), including `0002` migration tests and `test_serp_repositories.py` on PostgreSQL |
+| Phase 3.1 tests | `unit/test_raw_item_schema.py` (46: contract validation, raw_key, context rules, all four engine fixtures), `integration/test_raw_item_repository.py` (23, PostgreSQL: lossless round trip of every engine fixture, idempotency, filters, exists, atomic batch, cascade), `0003` additions in `test_migrations.py` (columns, defaults, indexes, FKs, every check constraint, downgrade paths). A mutation check (repository dropping `published_raw`) made the round-trip test fail, as it should |
+| Backend lint/format (2026-10-07) | `ruff check .` clean; `ruff format --check .` clean (132 files) |
+| Other checks (2026-10-07) | `export_openapi.py --check` up to date; `validate_golden.py` ok; `check_type_contract.py` ok (75 schemas); `compileall` ok; `alembic upgrade head`, `alembic check`, `downgrade 0002`, re-upgrade ok on a blank DB |
+| Frontend (this pass) | Not touched, not re-run |
 | Migration CI | Configured with PostgreSQL 16 service |
 
 No live SerpApi/Groq calls or real NLP model loading in Phase 0 or Phase 1 tests. Phase 1 component tests use `react-dom/server` (no new test dependency).
@@ -264,13 +277,13 @@ CI has not been executed from this environment because it requires GitHub and np
 ## 20. Git Status
 
 ```text
-Current branch: main by project instruction (ZIP contains no .git metadata)
-Latest commit: unknown
-Working tree clean: unknown
-Commit/push: not performed by this implementation pass
+Current branch: main (no other branch exists or was created)
+History: the uploaded zip had no .git, so this pass ran `git init -b main` and made two local commits:
+  1. "Baseline: Phases 0-2 as uploaded" (the zip exactly as received)
+  2. "Phase 3.1: RawItem contract and persistence"
+This history is local to the returned zip and is NOT connected to your own repository's history. If you already have commits, apply commit 2 as a patch (`git format-patch -1`) instead of adopting this .git.
+Push/tag: not performed
 ```
-
-No branch was created.
 ## 21. Environment / Configuration
 
 - `backend/.env.example` contains placeholders for Supabase, SerpApi and Groq settings.
@@ -281,17 +294,15 @@ No branch was created.
 ## 22. Known Issues
 
 ```text
-Issue: Phase 2 not verified with real tooling.
-Location: backend (pytest, Ruff, Alembic, PostgreSQL)
-Impact: Migration 0002, SQLAlchemy models/repositories, Ruff format and the full Phase 0/1 regression run are unverified. The execution environment had no pydantic, SQLAlchemy, pytest, Ruff or PostgreSQL and no network.
-Workaround: Run on a machine with dependencies: pip install -e ".[dev]"; alembic upgrade head; pytest (set TEST_DATABASE_URL); ruff check . ; ruff format --check . ; python scripts/export_openapi.py --check ; python scripts/validate_golden.py
-Recommended fix: Do that before committing. Fix anything that fails (most likely candidates: ruff format diffs, migration/model drift in test_migrations.py).
+Issue: (RESOLVED 2026-10-07) Phase 2 was unverified with real tooling.
+Resolution: the Phase 3.1 pass ran pytest, Ruff, Alembic and PostgreSQL 16 on the Phase 2 code before changing anything: 297 passed, ruff check clean, migration 0002 applied. One formatting diff in tests/unit/test_serp_client.py was fixed.
+Still unverified: Supabase itself, CI, frontend in this pass.
 ```
 
 ```text
 Issue: The zip's .github/workflows/ci.yml is an empty (0-byte) file, and contracts/demo/samsung_s25_ultra.json is empty.
 Location: .github/workflows/ci.yml
-Impact: Section 19 says CI is authored; in the uploaded copy it is not. No CI runs on push.
+Impact: Section 19 says CI is authored; in the uploaded copy it is not (still 0 bytes after Phase 3.1; not touched). No CI runs on push.
 Workaround: Restore ci.yml from your working copy.
 Recommended fix: Check git status on your side; the zip may have been exported incorrectly. Not touched in Phase 2.
 ```
@@ -387,6 +398,19 @@ Decisions made in Phase 2 (2026-10-07, review them):
 - Competitor queries use the brand name only; plan order is priority order (competitors are dropped first when the cap is below 11).
 - `scripts/probe_demo_signal.py` and `scripts/warm_demo_cache.py` NOT implemented (need a live session).
 
+Decisions made in Phase 3.1 (2026-10-07, review them):
+
+- **Added a `raw_items` table that DATABASE.md did not have.** The docs go straight from `serp_cache` to `content_items` (normalized). The request asked for persisted RawItems, so `raw_items` is an additive staging table; `content_items` stays Phase 3.2. DATABASE.md 5.4a, the migration plan and the lifecycle table were updated; no existing design was changed. If you would rather have no staging table, drop migration `0003` and persist only `content_items`.
+- `raw_key` (sha256 of verbatim engine, source type, query, cache key, position, URL, title, snippet, dates) is an idempotency key only. Exact repeats are skipped, the same article from two queries stays two rows. No normalization, so Phase 3.2 owns every dedupe decision.
+- `url_hash`, `content_hash`, `dup_group` are not in `raw_items`: they are normalization outputs and belong to `content_items`.
+- `published_raw` and `published_iso` are text, not timestamptz, so nothing is parsed or guessed before 3.2.
+- `serp_cache_key` has no foreign key because `serp_cache` rows expire and are purged.
+- `purpose = collection` requires a window and `investigation` forbids one (DATABASE.md 5.5 says window is null for investigation items; requiring it for collection is the stricter reading) as a CHECK, mirrored in `RawItemContext`.
+- `RawItem` validation is stricter than in Phase 2 (engine/source_type match, no Trends, non-blank title/url, `position >= 1`). All Phase 2 parsers and fixtures still pass unchanged.
+- Blank check uses `~ '\S'`, not `btrim`: the tests showed Postgres `btrim` ignores tabs and newlines while Pydantic's `strip()` does not.
+- `RawItemRepository` follows the SerpApi repositories: takes an `Engine`, one short transaction per call. Pipeline stage transactions can change that in Phase 6 if needed.
+- Added `ContentPurpose` to `schemas/domain.py`; mirrored `SourceType`, `WindowKind`, `ContentPurpose` in `db/models/enums.py`.
+
 ## 24. Files Changed in This Implementation Pass
 
 ```text
@@ -419,19 +443,30 @@ Modified: app/db/models/__init__.py, tests/unit/test_db_models.py and tests/inte
 Unchanged: API routes and contracts/openapi.json, golden fixture, scoring, settings, frontend, other docs
 ```
 
+### Phase 3.1 pass (RawItem contract and persistence)
+
+```text
+New: backend/alembic/versions/20261007_0003_raw_items.py, backend/app/db/models/raw_item.py, backend/app/db/repositories/raw_item.py
+New tests: tests/unit/test_raw_item_schema.py, tests/integration/test_raw_item_repository.py
+Modified: app/schemas/serp.py (RawItem validation + compute_raw_key, RawItemContext, StoredRawItem, RawItemWriteResult), app/schemas/domain.py (ContentPurpose), app/db/models/enums.py, app/db/models/__init__.py
+Modified tests: tests/integration/test_migrations.py (head 0003, raw_items tests, downgrade paths), tests/unit/test_db_models.py (table set), tests/unit/test_domain.py (enum parity), tests/unit/test_serp_client.py (ruff format only)
+Docs: docs/DATABASE.md (5.4a, migration plan, lifecycle), backend/README.md, backend/app/services/serpapi/README.md, docs/PROGRESS.md
+Unchanged: API routes, contracts/openapi.json, golden fixture, scoring, settings, frontend, parsers, fixtures, ARCHITECTURE.md and other docs, ci.yml (still empty)
+```
+
 ## 25. Next Steps
 
-0. Verify Phase 2 on a real machine (see Known Issues, first entry), then commit on `main`.
+0. Phase 2 and 3.1 verified locally (section 18). Reconcile the returned git history with your own repo (section 20).
 1. Create the Supabase project and provide `DATABASE_URL` / `DATABASE_URL_DIRECT` when ready.
 2. Create/provide SerpApi and Groq keys; keep `ALLOW_LIVE_SERPAPI=false` until Phase 2 live-session approval.
 3. Run frontend `npm install`, `npm run generate:types`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` locally.
 4. Review and commit this Phase 0 implementation on `main`.
-5. Do the manual desktop/mobile visual check against `DESIGN_SYSTEM.md`. Phase 2 is implemented; approve one small live probe to verify `docs/SERPAPI_FINDINGS.md`, then record real fixtures.
+5. Do the manual desktop/mobile visual check against `DESIGN_SYSTEM.md`. Phase 2 and 3.1 are implemented; approve one small live probe to verify `docs/SERPAPI_FINDINGS.md`, then record real fixtures.
 6. Repo has no commits and branch `master`; AGENTS.md says work on `main`. Create the initial commit on `main` yourself.
 ## 26. AI Handoff
 
 ### Current Situation
-Phase 0 (contracts, backend skeleton), Phase 1 (golden frontend journey) and Phase 2 (SerpApi layer, code only) are implemented. Scope for Phase 1 followed `docs/PHASES.md`; a request to build the backend/real pipeline under the name "Phase 1" was resolved with the user as: docs Phase 1 only.
+Phase 0 (contracts, backend skeleton), Phase 1 (golden frontend journey), Phase 2 (SerpApi layer, code only) and Phase 3.1 (RawItem contract + `raw_items` persistence) are implemented. Scope for Phase 1 followed `docs/PHASES.md`; a request to build the backend/real pipeline under the name "Phase 1" was resolved with the user as: docs Phase 1 only.
 
 ### Verified
 - Backend: 155 passed / 31 skipped, OpenAPI check, golden validation, type contract (75 schemas), ruff check/format, compileall.
@@ -439,19 +474,19 @@ Phase 0 (contracts, backend skeleton), Phase 1 (golden frontend journey) and Pha
 - No live external services contacted; golden JSON and OpenAPI untouched.
 
 ### Pending
-- Phase 2 real-tool verification (pytest, Ruff, Alembic, PostgreSQL), restoring `ci.yml`, first live probe (needs approval), real fixtures, `probe_demo_signal.py`, `warm_demo_cache.py`.
+- Restoring `ci.yml` (empty in the zip), first live probe (needs approval), real fixtures, `probe_demo_signal.py`, `warm_demo_cache.py`.
 - Manual visual check (desktop + mobile) against `docs/DESIGN_SYSTEM.md`.
 - External account creation/keys (Supabase, SerpApi, Groq).
-- Initial commit on `main` (none exists yet).
+- Reconcile the git history in the returned zip with your own repository (section 20).
 
 ### Exact next task
-Run the Phase 2 verification list on a machine with dependencies and fix regressions. Then Phase 3 (processing and persistence: `content_items`, normalizer/dedupe/date parsing using `RawItem` from `app/schemas/serp.py`). No live calls until `ALLOW_LIVE_SERPAPI=true` is approved.
+Phase 3.2: `services/processing/` (`cleaner.py`, `normalizer.py` canonical URL/domain/hashes, `dates.py` relative-date parsing + `date_confidence` + window assignment, `dedupe.py` exact hash + near-duplicate `dup_group`), migration `0004` for `content_items` (docs/DATABASE.md 5.5), `ContentItemRepository`, and a pipeline-level function that reads `raw_items` and writes `content_items`. Input is `StoredRawItem`/`RawItem` from `app/schemas/serp.py`; reuse `raw_items` rows rather than re-parsing. No live calls until `ALLOW_LIVE_SERPAPI=true` is approved.
 
 ## 27. Definition of Current MVP Status
 
 ```text
-MVP STATUS: PHASES 0-2 IMPLEMENTED; GOLDEN DEMO READY; PHASE 2 UNVERIFIED BY REAL TOOLING; EXTERNAL ACCOUNT SETUP PENDING
-CURRENT PHASE: 2 complete at code level
+MVP STATUS: PHASES 0-2 AND 3.1 IMPLEMENTED AND BACKEND-VERIFIED LOCALLY; 3.2 NOT STARTED; EXTERNAL ACCOUNT SETUP PENDING
+CURRENT PHASE: 3.1 complete; 3.2 next
 CURRENT MILESTONE: M1 clickable demo, golden flow implemented (visual check pending)
-NEXT REQUIRED ACTION: verify Phase 2 with real tooling, manual visual check, supply external accounts/keys, then Phase 3
+NEXT REQUIRED ACTION: Phase 3.2 (normalization, dedupe, content_items); manual visual check; supply external accounts/keys
 ```

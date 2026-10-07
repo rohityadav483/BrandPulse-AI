@@ -27,3 +27,7 @@ That command is plan-only. Recording live fixtures needs `--live --confirm-credi
 `ALLOW_LIVE_SERPAPI=true`.
 
 Live SerpApi/Groq calls are disabled by default. Do not commit `.env` or any API key.
+
+## Phase 3.1: RawItem contract and persistence
+
+`RawItem` (`app/schemas/serp.py`) is persisted unchanged in table `raw_items` (migration `0003`, model `app/db/models/raw_item.py`) through `RawItemRepository` (`app/db/repositories/raw_item.py`: `add`, `add_many`, `get`, `list_for_analysis`, `count`, `exists`, `existing_keys`). Re-persisting the same parsed response is a no-op. No cleaning, normalization or deduplication yet: that is Phase 3.2 (`content_items`). See `app/services/serpapi/README.md` and `docs/DATABASE.md` 5.4a.

@@ -18,13 +18,14 @@ def _cfg(url: str | None = None) -> Config:
     return cfg
 
 
-def test_metadata_has_only_phase_0_and_2_tables():
+def test_metadata_has_only_phase_0_2_and_3_1_tables():
     assert set(Base.metadata.tables) == {
         "brands",
         "analyses",
         "analysis_brands",
         "serp_cache",
         "serp_usage",
+        "raw_items",
     }
     assert Brand.__tablename__ == "brands"
     assert Analysis.__tablename__ == "analyses"

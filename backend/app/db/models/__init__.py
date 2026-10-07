@@ -3,6 +3,15 @@
 from app.db.models.analysis import Analysis, AnalysisBrand
 from app.db.models.base import Base
 from app.db.models.brand import Brand
+from app.db.models.raw_item import RawItemRow
 from app.db.models.serp import SerpCache, SerpUsage
 
-__all__ = ["Analysis", "AnalysisBrand", "Base", "Brand", "SerpCache", "SerpUsage"]
+__all__ = [
+    "Analysis",
+    "AnalysisBrand",
+    "Base",
+    "Brand",
+    "RawItemRow",
+    "SerpCache",
+    "SerpUsage",
+]

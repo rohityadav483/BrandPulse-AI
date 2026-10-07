@@ -17,6 +17,7 @@ PG_ENUMS = {
     "brand_role": domain.BrandRole,
     "source_type": domain.SourceType,
     "window_kind": domain.WindowKind,
+    "content_purpose": domain.ContentPurpose,
     "date_confidence": domain.DateConfidence,
     "sentiment": domain.Sentiment,
     "signal_kind": domain.SignalKind,
@@ -56,7 +57,17 @@ def test_enum_values_match_database_md(pg_name):
     assert [m.value for m in PG_ENUMS[pg_name]] == expected
 
 
-@pytest.mark.parametrize("name", ["AnalysisStatus", "AnalysisStage", "BrandRole"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "AnalysisStatus",
+        "AnalysisStage",
+        "BrandRole",
+        "SourceType",
+        "WindowKind",
+        "ContentPurpose",
+    ],
+)
 def test_enums_match_db_model_mirrors(name):
     api_values = [m.value for m in getattr(domain, name)]
     db_values = [m.value for m in getattr(db_enums, name)]
