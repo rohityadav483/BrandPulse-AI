@@ -1,0 +1,140 @@
+import io
+from pathlib import Path
+
+import pytest
+from alembic import command
+from alembic.config import Config
+
+from app.db.models import Analysis, AnalysisBrand, Base, Brand
+from app.db.models.enums import AnalysisStage, AnalysisStatus, BrandRole
+
+ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
+
+
+def _cfg(url: str | None = None) -> Config:
+    cfg = Config(str(ALEMBIC_INI))
+    if url:
+        cfg.attributes["url"] = url
+    return cfg
+
+
+def test_metadata_has_only_phase_0_and_2_tables():
+    assert set(Base.metadata.tables) == {
+        "brands",
+        "analyses",
+        "analysis_brands",
+        "serp_cache",
+        "serp_usage",
+    }
+    assert Brand.__tablename__ == "brands"
+    assert Analysis.__tablename__ == "analyses"
+    assert AnalysisBrand.__tablename__ == "analysis_brands"
+
+
+def test_python_enums_match_database_md_section_3():
+    assert [e.value for e in AnalysisStatus] == [
+        "queued",
+        "running",
+        "completed",
+        "partial",
+        "failed",
+    ]
+    assert [e.value for e in AnalysisStage] == [
+        "planning",
+        "collecting",
+        "processing",
+        "analyzing",
+        "detecting",
+        "snapshotting",
+        "done",
+    ]
+    assert [e.value for e in BrandRole] == ["target", "competitor", "suggested"]
+
+
+def test_not_null_columns_follow_database_md():
+    cols = Base.metadata.tables["analyses"].c
+    not_null = {c.name for c in cols if not c.nullable}
+    assert not_null == {
+        "id",
+        "brand_id",
+        "period_days",
+        "as_of_date",
+        "current_start",
+        "current_end",
+        "baseline_start",
+        "baseline_end",
+        "status",
+        "progress",
+        "warnings",
+        "serp_calls_used",
+        "serp_calls_budget",
+        "live_run",
+        "created_at",
+    }
+    nullable = {c.name for c in cols if c.nullable}
+    assert nullable == {
+        "product",
+        "category",
+        "stage",
+        "error",
+        "client_ip_hash",
+        "started_at",
+        "finished_at",
+    }
+
+
+def test_alembic_requires_a_database_url(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL_DIRECT", "")
+    with pytest.raises(RuntimeError, match="DATABASE_URL_DIRECT"):
+        command.upgrade(_cfg(), "head")
+
+
+def test_offline_sql_generation_needs_no_database():
+    cfg = _cfg("postgresql://u:p@localhost/none")
+    cfg.output_buffer = io.StringIO()
+    command.upgrade(cfg, "head", sql=True)
+    sql = cfg.output_buffer.getvalue()
+    assert "CREATE TYPE analysis_status AS ENUM ('queued', 'running'" in sql
+    assert "CREATE TABLE brands" in sql
+    assert "CREATE TABLE analyses" in sql
+    assert "CREATE TABLE analysis_brands" in sql
+    assert "CREATE TABLE content_items" not in sql  # later phases are not created yet
+
+
+def test_serp_cache_columns_and_pk():
+    table = Base.metadata.tables["serp_cache"]
+    assert [c.name for c in table.primary_key.columns] == ["cache_key"]
+    assert {c.name for c in table.c if not c.nullable} == {
+        "cache_key",
+        "engine",
+        "params",
+        "response",
+        "fetched_at",
+        "expires_at",
+        "pinned",
+    }
+    assert table.c.http_status.nullable
+    assert {i.name for i in table.indexes} == {"ix_serp_cache_expires_at"}
+
+
+def test_serp_usage_columns_fk_and_constraints():
+    table = Base.metadata.tables["serp_usage"]
+    assert [c.name for c in table.primary_key.columns] == ["id"]
+    assert {c.name for c in table.c if not c.nullable} == {
+        "id",
+        "cache_key",
+        "engine",
+        "cache_hit",
+        "credits",
+        "purpose",
+        "account_label",
+        "created_at",
+    }
+    (fk,) = table.foreign_keys
+    assert fk.target_fullname == "analyses.id" and fk.ondelete == "SET NULL"
+    assert not table.c.investigation_id.foreign_keys
+    assert {i.name for i in table.indexes} == {"ix_serp_usage_created_at"}
+    assert {c.name for c in table.constraints if c.name} >= {
+        "ck_serp_usage_credits_range",
+        "ck_serp_usage_purpose_allowed",
+    }

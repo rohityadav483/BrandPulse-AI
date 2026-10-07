@@ -1,0 +1,101 @@
+{
+  "_fixture": {
+    "kind": "synthetic_mock",
+    "engine": "google_trends",
+    "note": "Hand-written to mirror SerpApi's documented response shape. NOT a recorded response: no live call was made. Replace with sanitized recordings from scripts/record_serp_fixtures.py after an approved live session. Three terms in one call; one value is the string '<1'."
+  },
+  "search_metadata": {
+    "id": "mock-trends-0001",
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "google_trends",
+    "q": "Samsung,Apple,OnePlus",
+    "data_type": "TIMESERIES",
+    "date": "2026-06-12 2026-08-10"
+  },
+  "interest_over_time": {
+    "timeline_data": [
+      {
+        "date": "Jun 7 – 13, 2026",
+        "timestamp": "1780790400",
+        "values": [
+          {
+            "query": "Samsung",
+            "value": "61",
+            "extracted_value": 61
+          },
+          {
+            "query": "Apple",
+            "value": "88",
+            "extracted_value": 88
+          },
+          {
+            "query": "OnePlus",
+            "value": "<1"
+          }
+        ]
+      },
+      {
+        "date": "Jul 12 – 18, 2026",
+        "timestamp": "1783814400",
+        "values": [
+          {
+            "query": "Samsung",
+            "value": "64",
+            "extracted_value": 64
+          },
+          {
+            "query": "Apple",
+            "value": "90",
+            "extracted_value": 90
+          },
+          {
+            "query": "OnePlus",
+            "value": "3",
+            "extracted_value": 3
+          }
+        ]
+      },
+      {
+        "date": "Jul 26 – Aug 1, 2026",
+        "timestamp": "1785024000",
+        "values": [
+          {
+            "query": "Samsung",
+            "value": "100",
+            "extracted_value": 100
+          },
+          {
+            "query": "Apple",
+            "value": "85",
+            "extracted_value": 85
+          },
+          {
+            "query": "OnePlus",
+            "value": "2",
+            "extracted_value": 2
+          }
+        ]
+      },
+      {
+        "timestamp": "1785628800",
+        "values": []
+      }
+    ],
+    "averages": [
+      {
+        "query": "Samsung",
+        "value": 75
+      },
+      {
+        "query": "Apple",
+        "value": 88
+      },
+      {
+        "query": "OnePlus",
+        "value": 2
+      }
+    ]
+  }
+}

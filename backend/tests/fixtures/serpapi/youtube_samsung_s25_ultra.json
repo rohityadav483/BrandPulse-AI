@@ -1,0 +1,50 @@
+{
+  "_fixture": {
+    "kind": "synthetic_mock",
+    "engine": "youtube",
+    "note": "Hand-written to mirror SerpApi's documented response shape. NOT a recorded response: no live call was made. Replace with sanitized recordings from scripts/record_serp_fixtures.py after an approved live session. Dates are relative, as expected; one view count is abbreviated."
+  },
+  "search_metadata": {
+    "id": "mock-youtube-0001",
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "youtube",
+    "search_query": "Samsung Galaxy S25 Ultra"
+  },
+  "video_results": [
+    {
+      "position_on_page": 1,
+      "title": "S25 Ultra after the update: is the battery really worse?",
+      "link": "https://www.youtube.example.test/watch?v=mock0001",
+      "channel": {
+        "name": "Example Tech Channel",
+        "link": "https://www.youtube.example.test/@exampletech"
+      },
+      "published_date": "2 weeks ago",
+      "views": 120345,
+      "length": "12:03",
+      "description": "We test battery life before and after the July update."
+    },
+    {
+      "position_on_page": 2,
+      "title": "Galaxy S25 Ultra camera test",
+      "link": "https://www.youtube.example.test/watch?v=mock0002",
+      "channel": {
+        "name": "Example Photo Lab"
+      },
+      "published_date": "1 month ago",
+      "views": "1.2K views",
+      "length": "8:41"
+    },
+    {
+      "position_on_page": 3,
+      "title": "Unboxing S25 Ultra",
+      "link": "https://www.youtube.example.test/watch?v=mock0003"
+    },
+    {
+      "position_on_page": 4,
+      "title": "Video without a link"
+    }
+  ]
+}

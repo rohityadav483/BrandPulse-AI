@@ -1,0 +1,47 @@
+{
+  "_fixture": {
+    "kind": "synthetic_mock",
+    "engine": "google_forums",
+    "note": "Hand-written to mirror SerpApi's documented response shape. NOT a recorded response: no live call was made. Replace with sanitized recordings from scripts/record_serp_fixtures.py after an approved live session. Result key names for Google Forums are unverified; `organic_results` is assumed."
+  },
+  "search_metadata": {
+    "id": "mock-forums-0001",
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "google_forums",
+    "q": "Samsung Galaxy S25 Ultra",
+    "hl": "en",
+    "gl": "us"
+  },
+  "organic_results": [
+    {
+      "position": 1,
+      "title": "Battery drain after July update (S25 Ultra)",
+      "link": "https://forum.example.test/r/GalaxyS25/battery-drain-july",
+      "source": "Example Forum",
+      "date": "3 weeks ago",
+      "snippet": "Anyone else seeing 15-20% overnight drain since the update?",
+      "answers": "42 answers"
+    },
+    {
+      "position": 2,
+      "title": "Overheating while charging, normal?",
+      "link": "https://community.example.test/t/overheating-charging/987",
+      "author": "phone_fan_77",
+      "date": "2 weeks ago",
+      "comments": 17
+    },
+    {
+      "position": 3,
+      "title": "S25 Ultra camera vs last year",
+      "link": "https://forum.example.test/r/GalaxyS25/camera-vs-s24",
+      "source": "Example Forum"
+    },
+    {
+      "position": 4,
+      "title": "Thread without a link",
+      "source": "Example Forum"
+    }
+  ]
+}

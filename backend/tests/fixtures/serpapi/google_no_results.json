@@ -1,0 +1,16 @@
+{
+  "_fixture": {
+    "kind": "synthetic_mock",
+    "engine": "google",
+    "note": "Hand-written to mirror SerpApi's documented response shape. NOT a recorded response: no live call was made. Replace with sanitized recordings from scripts/record_serp_fixtures.py after an approved live session. SerpApi reports an empty search as an `error` string."
+  },
+  "search_metadata": {
+    "id": "mock-empty-0001",
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "google",
+    "q": "zzqx no such brand review problems"
+  },
+  "error": "Google hasn't returned any results for this query."
+}

@@ -1,0 +1,89 @@
+# Secrets & Environment (never commit real secrets; keep .env.example)
+.env
+.env.*
+*.env
+*.env.local
+!.env.example
+!**/.env.example
+!*.env.example
+!**/*.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python test, lint & coverage caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage/
+coverage.xml
+htmlcov/
+
+# Local model cache (HF_HOME / Transformers / Torch)
+.hf_cache/
+hf_cache/
+.cache/
+huggingface/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+.turbo/
+.vercel/
+
+# Root accidental lockfile (frontend has its own package-lock.json)
+/package-lock.json
+
+# Databases & local stores
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Scratch & temporary
+scratch/
+tmp/
+temp/
+*.tmp
+
+# Editor & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# IDE / Agent artifacts
+.gemini/

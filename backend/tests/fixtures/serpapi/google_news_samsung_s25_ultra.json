@@ -1,0 +1,78 @@
+{
+  "_fixture": {
+    "kind": "synthetic_mock",
+    "engine": "google_news",
+    "note": "Hand-written to mirror SerpApi's documented response shape. NOT a recorded response: no live call was made. Replace with sanitized recordings from scripts/record_serp_fixtures.py after an approved live session. Includes a story cluster, a bare string row and a row without a title."
+  },
+  "search_metadata": {
+    "id": "mock-news-0001",
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "google_news",
+    "q": "Samsung Galaxy S25 Ultra after:2026-07-12 before:2026-08-11",
+    "hl": "en",
+    "gl": "us"
+  },
+  "news_results": [
+    {
+      "position": 1,
+      "title": "Galaxy S25 Ultra owners report battery drain after July update",
+      "link": "https://news.example.test/s25-ultra-battery-drain",
+      "source": {
+        "name": "Example Tech Daily",
+        "authors": [
+          "A. Writer",
+          "B. Editor"
+        ]
+      },
+      "date": "07/30/2026, 07:00 AM, +0000 UTC",
+      "iso_date": "2026-07-30T07:00:00Z",
+      "snippet": "Complaints about faster battery drain and warmth followed the latest security update."
+    },
+    {
+      "position": 2,
+      "title": "Samsung acknowledges charging slowdown on some Galaxy phones",
+      "link": "https://wire.example.test/samsung-charging-slowdown",
+      "source": {
+        "name": "Example Wire"
+      },
+      "date": "08/02/2026, 10:15 AM, +0000 UTC"
+    },
+    {
+      "position": 3,
+      "title": "Galaxy S25 Ultra camera update improves low-light shots",
+      "link": "https://gadgets.example.test/s25-ultra-camera-update",
+      "source": "Example Gadgets",
+      "date": "07/21/2026, 03:40 PM, +0000 UTC"
+    },
+    {
+      "position": 4,
+      "title": "Coverage cluster: Samsung update problems",
+      "stories": [
+        {
+          "title": "Update problems spread across Galaxy S24 and S25 Ultra",
+          "link": "https://blog.example.test/update-problems-spread",
+          "source": {
+            "name": "Example Blog"
+          },
+          "date": "08/05/2026, 09:00 AM, +0000 UTC"
+        },
+        {
+          "title": "What to do if your Galaxy battery drains overnight",
+          "link": "https://howto.example.test/galaxy-battery-overnight",
+          "source": {
+            "name": "Example How-To"
+          },
+          "date": "08/06/2026, 11:30 AM, +0000 UTC"
+        }
+      ]
+    },
+    "unexpected string row",
+    {
+      "position": 6,
+      "link": "https://notitle.example.test/story",
+      "source": "No Title Ltd"
+    }
+  ]
+}

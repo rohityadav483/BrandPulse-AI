@@ -1,0 +1,51 @@
+{
+  "_fixture": {
+    "kind": "synthetic_mock",
+    "engine": "google",
+    "note": "Hand-written to mirror SerpApi's documented response shape. NOT a recorded response: no live call was made. Replace with sanitized recordings from scripts/record_serp_fixtures.py after an approved live session. Two rows are deliberately unusable (no link, blank title)."
+  },
+  "search_metadata": {
+    "id": "mock-web-0001",
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "google",
+    "q": "Samsung Galaxy S25 Ultra review problems",
+    "tbs": "cdr:1,cd_min:7/12/2026,cd_max:8/10/2026",
+    "hl": "en",
+    "gl": "us"
+  },
+  "organic_results": [
+    {
+      "position": 1,
+      "title": "Galaxy S25 Ultra review: the good and the bad",
+      "link": "https://reviews.example.test/galaxy-s25-ultra-review",
+      "displayed_link": "reviews.example.test > galaxy-s25-ultra-review",
+      "snippet": "Excellent camera, but several owners report battery drain after the update.",
+      "date": "Jul 29, 2026",
+      "source": "Example Reviews"
+    },
+    {
+      "position": 2,
+      "title": "Why is my S25 Ultra battery draining so fast?",
+      "link": "https://community.example.test/t/s25-ultra-battery-drain/1234",
+      "displayed_link": "community.example.test > t > s25-ultra-battery-drain",
+      "snippet": "Since the July update the phone loses 20% overnight and runs warm."
+    },
+    {
+      "position": 3,
+      "title": "Samsung Galaxy S25 Ultra - full specifications",
+      "link": "https://specs.example.test/samsung-galaxy-s25-ultra"
+    },
+    {
+      "position": 4,
+      "title": "Result without a link",
+      "snippet": "Dropped by the parser."
+    },
+    {
+      "position": 5,
+      "title": "",
+      "link": "https://blank.example.test/title"
+    }
+  ]
+}

@@ -1,0 +1,3293 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BrandPulse AI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/analyses/estimate": {
+      "post": {
+        "tags": [
+          "analyses"
+        ],
+        "summary": "Cost preview; no side effects",
+        "operationId": "estimateAnalysis",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimateAnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "bad_request: malformed body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analyses": {
+      "post": {
+        "tags": [
+          "analyses"
+        ],
+        "summary": "Start an analysis",
+        "operationId": "createAnalysis",
+        "parameters": [
+          {
+            "name": "X-Access-Code",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required only when the run needs new SerpApi calls (LIVE_ACCESS_CODE set).",
+              "title": "X-Access-Code"
+            },
+            "description": "Required only when the run needs new SerpApi calls (LIVE_ACCESS_CODE set)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnalysisRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "bad_request: malformed body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_access_required: new SerpApi calls needed; `X-Access-Code` missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "analysis_not_ready, analysis_failed, signal_not_investigable, investigation_in_progress or live_data_disabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "daily_limit_reached, rate_limited (`Retry-After` set) or serpapi_quota_low.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "nlp_unavailable or service_unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "analyses"
+        ],
+        "summary": "Recent analyses",
+        "operationId": "listAnalyses",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAnalysesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analyses/{id}": {
+      "get": {
+        "tags": [
+          "analyses"
+        ],
+        "summary": "Status, stage, progress",
+        "operationId": "getAnalysis",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Analysis UUID (or a demo alias when DEMO_MODE=true).",
+              "title": "Id"
+            },
+            "description": "Analysis UUID (or a demo alias when DEMO_MODE=true)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: unknown or deleted ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analyses/{id}/dashboard": {
+      "get": {
+        "tags": [
+          "analyses"
+        ],
+        "summary": "Full dashboard payload",
+        "operationId": "getDashboard",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Analysis UUID (or a demo alias when DEMO_MODE=true).",
+              "title": "Id"
+            },
+            "description": "Analysis UUID (or a demo alias when DEMO_MODE=true)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: unknown or deleted ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "analysis_not_ready, analysis_failed, signal_not_investigable, investigation_in_progress or live_data_disabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analyses/{id}/mentions": {
+      "get": {
+        "tags": [
+          "analyses"
+        ],
+        "summary": "Source items behind an aspect or sentiment",
+        "operationId": "listMentions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Analysis UUID (or a demo alias when DEMO_MODE=true).",
+              "title": "Id"
+            },
+            "description": "Analysis UUID (or a demo alias when DEMO_MODE=true)."
+          },
+          {
+            "name": "brand_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default: the target brand.",
+              "title": "Brand Id"
+            },
+            "description": "Default: the target brand."
+          },
+          {
+            "name": "aspect",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "e.g. `battery`.",
+              "title": "Aspect"
+            },
+            "description": "e.g. `battery`."
+          },
+          {
+            "name": "sentiment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Sentiment"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sentiment"
+            }
+          },
+          {
+            "name": "source_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SourceType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Type"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/WindowKind",
+              "default": "current"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListMentionsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: unknown or deleted ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/signals/{id}": {
+      "get": {
+        "tags": [
+          "signals"
+        ],
+        "summary": "Signal detail",
+        "operationId": "getSignal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Signal UUID (or a demo alias when DEMO_MODE=true).",
+              "title": "Id"
+            },
+            "description": "Signal UUID (or a demo alias when DEMO_MODE=true)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: unknown or deleted ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/signals/{id}/investigate": {
+      "post": {
+        "tags": [
+          "signals"
+        ],
+        "summary": "Start or reuse an investigation (idempotent by default)",
+        "description": "`202` when a new investigation is created. `200` with `reused: true` when a queued, running or completed investigation already exists and `force` is false.",
+        "operationId": "investigateSignal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Signal UUID (or a demo alias when DEMO_MODE=true).",
+              "title": "Id"
+            },
+            "description": "Signal UUID (or a demo alias when DEMO_MODE=true)."
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Start a new investigation even if a completed one exists.",
+              "default": false,
+              "title": "Force"
+            },
+            "description": "Start a new investigation even if a completed one exists."
+          },
+          {
+            "name": "X-Access-Code",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only when new SerpApi calls are needed",
+              "title": "X-Access-Code"
+            },
+            "description": "Only when new SerpApi calls are needed"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigateSignalResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Existing investigation reused (`reused: true`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigateSignalResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "live_access_required: new SerpApi calls needed; `X-Access-Code` missing or wrong.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: unknown or deleted ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "analysis_not_ready, analysis_failed, signal_not_investigable, investigation_in_progress or live_data_disabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "daily_limit_reached, rate_limited (`Retry-After` set) or serpapi_quota_low.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investigations/{id}": {
+      "get": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "Status, then full report",
+        "operationId": "getInvestigation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Investigation UUID (or a demo alias when DEMO_MODE=true).",
+              "title": "Id"
+            },
+            "description": "Investigation UUID (or a demo alias when DEMO_MODE=true)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: unknown or deleted ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investigations/{id}/evidence": {
+      "get": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "Evidence explorer",
+        "operationId": "listInvestigationEvidence",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Investigation UUID (or a demo alias when DEMO_MODE=true).",
+              "title": "Id"
+            },
+            "description": "Investigation UUID (or a demo alias when DEMO_MODE=true)."
+          },
+          {
+            "name": "stance",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Stance"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stance"
+            }
+          },
+          {
+            "name": "source_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SourceType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Type"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEvidenceResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: unknown or deleted ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usage": {
+      "get": {
+        "tags": [
+          "usage"
+        ],
+        "summary": "Monthly SerpApi and daily Groq/analysis usage",
+        "operationId": "getUsage",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Health",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysesToday": {
+        "properties": {
+          "used": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Used"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "used",
+          "limit"
+        ],
+        "title": "AnalysesToday"
+      },
+      "AnalysisListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "brand": {
+            "type": "string",
+            "title": "Brand"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "top_signal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TopSignal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "brand",
+          "status",
+          "created_at"
+        ],
+        "title": "AnalysisListItem"
+      },
+      "AnalysisStage": {
+        "type": "string",
+        "enum": [
+          "planning",
+          "collecting",
+          "processing",
+          "analyzing",
+          "detecting",
+          "snapshotting",
+          "done"
+        ],
+        "title": "AnalysisStage"
+      },
+      "AnalysisStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "partial",
+          "failed"
+        ],
+        "title": "AnalysisStatus"
+      },
+      "AnalysisStatusResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisStage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress"
+          },
+          "brands": {
+            "items": {
+              "$ref": "#/components/schemas/BrandRef"
+            },
+            "type": "array",
+            "title": "Brands"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/Warning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "serp_calls_used": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Serp Calls Used"
+          },
+          "serp_calls_budget": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Serp Calls Budget"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "progress",
+          "brands",
+          "period",
+          "serp_calls_used",
+          "serp_calls_budget",
+          "created_at"
+        ],
+        "title": "AnalysisStatusResponse",
+        "description": "`getAnalysis`: lightweight status, polled every 2 s. Terminal: completed, partial, failed."
+      },
+      "AspectStat": {
+        "properties": {
+          "aspect": {
+            "type": "string",
+            "title": "Aspect"
+          },
+          "net_score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": -100.0,
+            "title": "Net Score"
+          },
+          "mentions": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Mentions"
+          },
+          "positive": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Positive"
+          },
+          "neutral": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Neutral"
+          },
+          "negative": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Negative"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aspect",
+          "net_score",
+          "mentions",
+          "positive",
+          "neutral",
+          "negative"
+        ],
+        "title": "AspectStat"
+      },
+      "BlockedReason": {
+        "type": "string",
+        "enum": [
+          "serpapi_quota_low",
+          "live_data_disabled",
+          "daily_limit_reached"
+        ],
+        "title": "BlockedReason",
+        "description": "`estimateAnalysis.blocked_reason` (API.md section 3.11)."
+      },
+      "BrandRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/BrandRole"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "title": "BrandRef"
+      },
+      "BrandRole": {
+        "type": "string",
+        "enum": [
+          "target",
+          "competitor",
+          "suggested"
+        ],
+        "title": "BrandRole"
+      },
+      "Category": {
+        "type": "string",
+        "enum": [
+          "consumer_electronics",
+          "generic"
+        ],
+        "title": "Category",
+        "description": "Aspect lexicon preset (API.md section 3.1)."
+      },
+      "ComparisonRow": {
+        "properties": {
+          "brand": {
+            "$ref": "#/components/schemas/BrandRef"
+          },
+          "positive_pct": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Positive Pct"
+          },
+          "negative_pct": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Negative Pct"
+          },
+          "aspect_negative_share": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Aspect Negative Share"
+          },
+          "level": {
+            "$ref": "#/components/schemas/ImpactLevel"
+          },
+          "search_interest_change_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Interest Change Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brand",
+          "positive_pct",
+          "negative_pct",
+          "aspect_negative_share",
+          "level"
+        ],
+        "title": "ComparisonRow"
+      },
+      "CompetitorBlock": {
+        "properties": {
+          "brand": {
+            "$ref": "#/components/schemas/BrandRef"
+          },
+          "sample_size": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sample Size"
+          },
+          "low_data": {
+            "type": "boolean",
+            "title": "Low Data"
+          },
+          "sentiment": {
+            "$ref": "#/components/schemas/SentimentDistribution"
+          },
+          "aspects": {
+            "items": {
+              "$ref": "#/components/schemas/AspectStat"
+            },
+            "type": "array",
+            "title": "Aspects"
+          },
+          "search_interest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchInterest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "brand",
+          "sample_size",
+          "low_data",
+          "sentiment",
+          "aspects"
+        ],
+        "title": "CompetitorBlock",
+        "description": "Current-window snapshot only. No `health`, no `topics` in the MVP."
+      },
+      "CompetitorComparison": {
+        "properties": {
+          "aspect": {
+            "type": "string",
+            "title": "Aspect"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aspect",
+          "rows"
+        ],
+        "title": "CompetitorComparison"
+      },
+      "ConfidenceFactors": {
+        "properties": {
+          "independence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Independence"
+          },
+          "agreement": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Agreement"
+          },
+          "signal_strength": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Signal Strength"
+          },
+          "recency": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Recency"
+          },
+          "consistency": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Consistency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "independence",
+          "agreement",
+          "signal_strength",
+          "recency",
+          "consistency"
+        ],
+        "title": "ConfidenceFactors"
+      },
+      "ConfidenceLabel": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "title": "ConfidenceLabel",
+        "description": "Derived at read time from the 0-100 score (DATABASE.md section 3)."
+      },
+      "ConfidenceSource": {
+        "type": "string",
+        "enum": [
+          "signal",
+          "investigation"
+        ],
+        "title": "ConfidenceSource",
+        "description": "API.md section 3.4: which number `confidence` currently reflects."
+      },
+      "CoverageSourceType": {
+        "type": "string",
+        "enum": [
+          "web",
+          "news",
+          "youtube",
+          "forum",
+          "shopping",
+          "trends"
+        ],
+        "title": "CoverageSourceType",
+        "description": "`source_coverage` entries: the source types plus `trends` (API.md section 3.8)."
+      },
+      "CreateAnalysisRequest": {
+        "properties": {
+          "brand": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Brand"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "competitors": {
+            "items": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 2,
+            "title": "Competitors"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category",
+            "default": "consumer_electronics"
+          },
+          "period_days": {
+            "type": "integer",
+            "enum": [
+              7,
+              14,
+              30
+            ],
+            "title": "Period Days",
+            "default": 30
+          },
+          "as_of_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brand"
+        ],
+        "title": "CreateAnalysisRequest",
+        "description": "Body of `createAnalysis` and `estimateAnalysis`."
+      },
+      "CreateAnalysisResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          },
+          "poll_url": {
+            "type": "string",
+            "title": "Poll Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "poll_url"
+        ],
+        "title": "CreateAnalysisResponse"
+      },
+      "DashboardAnalysis": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "as_of_date": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of Date"
+          },
+          "live_run": {
+            "type": "boolean",
+            "title": "Live Run"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/Warning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "as_of_date",
+          "live_run",
+          "period"
+        ],
+        "title": "DashboardAnalysis"
+      },
+      "DashboardResponse": {
+        "properties": {
+          "analysis": {
+            "$ref": "#/components/schemas/DashboardAnalysis"
+          },
+          "target": {
+            "$ref": "#/components/schemas/TargetBlock"
+          },
+          "competitors": {
+            "items": {
+              "$ref": "#/components/schemas/CompetitorBlock"
+            },
+            "type": "array",
+            "title": "Competitors"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/SignalSummary"
+            },
+            "type": "array",
+            "title": "Signals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analysis",
+          "target"
+        ],
+        "title": "DashboardResponse"
+      },
+      "DateConfidence": {
+        "type": "string",
+        "enum": [
+          "exact",
+          "approximate",
+          "unknown"
+        ],
+        "title": "DateConfidence"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse"
+      },
+      "EstimateAnalysisResponse": {
+        "properties": {
+          "planned_calls": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Planned Calls"
+          },
+          "cached_calls": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Cached Calls"
+          },
+          "estimated_new_calls": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Estimated New Calls"
+          },
+          "as_of_date": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of Date"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "serpapi": {
+            "$ref": "#/components/schemas/SerpapiQuota"
+          },
+          "live_enabled": {
+            "type": "boolean",
+            "title": "Live Enabled"
+          },
+          "needs_access_code": {
+            "type": "boolean",
+            "title": "Needs Access Code"
+          },
+          "can_run": {
+            "type": "boolean",
+            "title": "Can Run"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BlockedReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "planned_calls",
+          "cached_calls",
+          "estimated_new_calls",
+          "as_of_date",
+          "period",
+          "serpapi",
+          "live_enabled",
+          "needs_access_code",
+          "can_run"
+        ],
+        "title": "EstimateAnalysisResponse"
+      },
+      "EvidenceCounts": {
+        "properties": {
+          "supports": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Supports"
+          },
+          "contradicts": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Contradicts"
+          },
+          "neutral": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Neutral"
+          }
+        },
+        "type": "object",
+        "required": [
+          "supports",
+          "contradicts",
+          "neutral"
+        ],
+        "title": "EvidenceCounts"
+      },
+      "EvidenceItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "stance": {
+            "$ref": "#/components/schemas/Stance"
+          },
+          "relevance": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Relevance"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rank"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "stance",
+          "relevance",
+          "rank",
+          "source"
+        ],
+        "title": "EvidenceItem"
+      },
+      "Finding": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Finding"
+      },
+      "GeneratedBy": {
+        "type": "string",
+        "enum": [
+          "llm",
+          "fallback"
+        ],
+        "title": "GeneratedBy",
+        "description": "API.md section 3.8: `fallback` = deterministic templates because Groq was unavailable."
+      },
+      "GrowthSampleSize": {
+        "properties": {
+          "current": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Current"
+          },
+          "baseline": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Baseline"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "baseline"
+        ],
+        "title": "GrowthSampleSize",
+        "description": "Growth sources only (news and web with reliable dates)."
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ],
+            "title": "Database"
+          },
+          "nlp": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "loading",
+              "unavailable"
+            ],
+            "title": "Nlp"
+          },
+          "serpapi_configured": {
+            "type": "boolean",
+            "title": "Serpapi Configured"
+          },
+          "live_serpapi_enabled": {
+            "type": "boolean",
+            "title": "Live Serpapi Enabled"
+          },
+          "groq_configured": {
+            "type": "boolean",
+            "title": "Groq Configured"
+          },
+          "demo_mode": {
+            "type": "boolean",
+            "title": "Demo Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "database",
+          "nlp",
+          "serpapi_configured",
+          "live_serpapi_enabled",
+          "groq_configured",
+          "demo_mode"
+        ],
+        "title": "HealthResponse"
+      },
+      "HealthScores": {
+        "properties": {
+          "overall": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Overall"
+          },
+          "sentiment": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Sentiment"
+          },
+          "engagement": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Engagement"
+          },
+          "risk": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Risk"
+          },
+          "trend": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Trend"
+          },
+          "formula_version": {
+            "type": "string",
+            "title": "Formula Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall",
+          "sentiment",
+          "engagement",
+          "risk",
+          "trend",
+          "formula_version"
+        ],
+        "title": "HealthScores"
+      },
+      "ImpactLevel": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "title": "ImpactLevel"
+      },
+      "InvestigateSignalResponse": {
+        "properties": {
+          "investigation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Investigation Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvestigationStatus"
+          },
+          "reused": {
+            "type": "boolean",
+            "title": "Reused"
+          },
+          "poll_url": {
+            "type": "string",
+            "title": "Poll Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "investigation_id",
+          "status",
+          "reused",
+          "poll_url"
+        ],
+        "title": "InvestigateSignalResponse"
+      },
+      "InvestigationConfidence": {
+        "properties": {
+          "score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "label": {
+            "$ref": "#/components/schemas/ConfidenceLabel"
+          },
+          "factors": {
+            "$ref": "#/components/schemas/ConfidenceFactors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "label",
+          "factors"
+        ],
+        "title": "InvestigationConfidence"
+      },
+      "InvestigationRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvestigationStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "InvestigationRef"
+      },
+      "InvestigationReport": {
+        "properties": {
+          "generated_by": {
+            "$ref": "#/components/schemas/GeneratedBy"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/InvestigationConfidence"
+          },
+          "source_coverage": {
+            "items": {
+              "$ref": "#/components/schemas/SourceCoverage"
+            },
+            "type": "array",
+            "title": "Source Coverage"
+          },
+          "search_interest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportSearchInterest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "competitor_comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompetitorComparison"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_by",
+          "summary",
+          "scope",
+          "confidence",
+          "disclaimer"
+        ],
+        "title": "InvestigationReport"
+      },
+      "InvestigationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "signal_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Signal Id"
+          },
+          "analysis_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Analysis Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvestigationStatus"
+          },
+          "step": {
+            "$ref": "#/components/schemas/InvestigationStep"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/InvestigationStepInfo"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvestigationReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "signal_id",
+          "analysis_id",
+          "status",
+          "step"
+        ],
+        "title": "InvestigationResponse",
+        "description": "`getInvestigation`. `report` is null until `completed`; `error` is user-safe on `failed`."
+      },
+      "InvestigationStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "InvestigationStatus"
+      },
+      "InvestigationStep": {
+        "type": "string",
+        "enum": [
+          "generating_queries",
+          "collecting_evidence",
+          "scoring_evidence",
+          "comparing_competitors",
+          "synthesizing",
+          "recommending",
+          "done"
+        ],
+        "title": "InvestigationStep"
+      },
+      "InvestigationStepInfo": {
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/InvestigationStep"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "state": {
+            "$ref": "#/components/schemas/StepState"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "state"
+        ],
+        "title": "InvestigationStepInfo"
+      },
+      "ListAnalysesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ListAnalysesResponse"
+      },
+      "ListEvidenceResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Page Size"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/EvidenceCounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total",
+          "counts"
+        ],
+        "title": "ListEvidenceResponse"
+      },
+      "ListMentionsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MentionItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Page Size"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ],
+        "title": "ListMentionsResponse"
+      },
+      "MentionAspect": {
+        "properties": {
+          "aspect": {
+            "type": "string",
+            "title": "Aspect"
+          },
+          "sentiment": {
+            "$ref": "#/components/schemas/Sentiment"
+          },
+          "clause": {
+            "type": "string",
+            "title": "Clause"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aspect",
+          "sentiment",
+          "clause"
+        ],
+        "title": "MentionAspect"
+      },
+      "MentionItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "sentiment": {
+            "$ref": "#/components/schemas/Sentiment"
+          },
+          "aspects": {
+            "items": {
+              "$ref": "#/components/schemas/MentionAspect"
+            },
+            "type": "array",
+            "title": "Aspects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "sentiment"
+        ],
+        "title": "MentionItem"
+      },
+      "Period": {
+        "properties": {
+          "current_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Current Start"
+          },
+          "current_end": {
+            "type": "string",
+            "format": "date",
+            "title": "Current End"
+          },
+          "baseline_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Baseline Start"
+          },
+          "baseline_end": {
+            "type": "string",
+            "format": "date",
+            "title": "Baseline End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_start",
+          "current_end",
+          "baseline_start",
+          "baseline_end"
+        ],
+        "title": "Period"
+      },
+      "Priority": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "title": "Priority"
+      },
+      "Recommendation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "priority",
+          "title",
+          "action",
+          "rationale",
+          "timeframe"
+        ],
+        "title": "Recommendation"
+      },
+      "ReportSearchInterest": {
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "title": "Keyword"
+          },
+          "change_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keyword"
+        ],
+        "title": "ReportSearchInterest"
+      },
+      "Scope": {
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/ScopeVerdict"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict",
+          "explanation"
+        ],
+        "title": "Scope"
+      },
+      "ScopeVerdict": {
+        "type": "string",
+        "enum": [
+          "brand_specific",
+          "industry_wide",
+          "inconclusive",
+          "unknown"
+        ],
+        "title": "ScopeVerdict"
+      },
+      "ScoreComponents": {
+        "properties": {
+          "growth": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Growth"
+          },
+          "frequency": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Frequency"
+          },
+          "cross_source": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Cross Source"
+          },
+          "sentiment_impact": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Sentiment Impact"
+          }
+        },
+        "type": "object",
+        "required": [
+          "growth",
+          "frequency",
+          "cross_source",
+          "sentiment_impact"
+        ],
+        "title": "ScoreComponents"
+      },
+      "SearchInterest": {
+        "properties": {
+          "change_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Pct"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SearchInterestPoint"
+            },
+            "type": "array",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "title": "SearchInterest",
+        "description": "`change_pct` and `series` may be empty/null when Trends data is missing."
+      },
+      "SearchInterestPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "value"
+        ],
+        "title": "SearchInterestPoint"
+      },
+      "Sentiment": {
+        "type": "string",
+        "enum": [
+          "positive",
+          "neutral",
+          "negative"
+        ],
+        "title": "Sentiment"
+      },
+      "SentimentDistribution": {
+        "properties": {
+          "positive": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Positive"
+          },
+          "neutral": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Neutral"
+          },
+          "negative": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Negative"
+          }
+        },
+        "type": "object",
+        "required": [
+          "positive",
+          "neutral",
+          "negative"
+        ],
+        "title": "SentimentDistribution"
+      },
+      "SerpapiQuota": {
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Limit"
+          },
+          "used": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Used"
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Remaining"
+          },
+          "reserve": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Reserve"
+          }
+        },
+        "type": "object",
+        "required": [
+          "limit",
+          "used",
+          "remaining",
+          "reserve"
+        ],
+        "title": "SerpapiQuota"
+      },
+      "SignalDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SignalKind"
+          },
+          "aspect": {
+            "type": "string",
+            "title": "Aspect"
+          },
+          "growth": {
+            "type": "number",
+            "title": "Growth"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/ImpactLevel"
+          },
+          "confidence": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "confidence_source": {
+            "$ref": "#/components/schemas/ConfidenceSource"
+          },
+          "sources_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sources Count"
+          },
+          "source_types": {
+            "items": {
+              "$ref": "#/components/schemas/SourceType"
+            },
+            "type": "array",
+            "title": "Source Types"
+          },
+          "current_share": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Current Share"
+          },
+          "baseline_share": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Baseline Share"
+          },
+          "current_n": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Current N"
+          },
+          "baseline_n": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Baseline N"
+          },
+          "trend_corroborated": {
+            "type": "boolean",
+            "title": "Trend Corroborated"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SignalStatus"
+          },
+          "analysis_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Analysis Id"
+          },
+          "brand": {
+            "$ref": "#/components/schemas/BrandRef"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "score_components": {
+            "$ref": "#/components/schemas/ScoreComponents"
+          },
+          "latest_investigation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvestigationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "aspect",
+          "growth",
+          "impact",
+          "confidence",
+          "confidence_source",
+          "sources_count",
+          "source_types",
+          "current_share",
+          "baseline_share",
+          "current_n",
+          "baseline_n",
+          "trend_corroborated",
+          "status",
+          "analysis_id",
+          "brand",
+          "score",
+          "score_components"
+        ],
+        "title": "SignalDetail",
+        "description": "`getSignal`. Follows the API.md 3.6 example: `brand` (not `brand_id`) and\n`latest_investigation` (not `investigation_id`)."
+      },
+      "SignalKind": {
+        "type": "string",
+        "enum": [
+          "aspect_negative_spike"
+        ],
+        "title": "SignalKind"
+      },
+      "SignalStatus": {
+        "type": "string",
+        "enum": [
+          "detected",
+          "investigating",
+          "investigated"
+        ],
+        "title": "SignalStatus"
+      },
+      "SignalSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SignalKind"
+          },
+          "aspect": {
+            "type": "string",
+            "title": "Aspect"
+          },
+          "growth": {
+            "type": "number",
+            "title": "Growth"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/ImpactLevel"
+          },
+          "confidence": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "confidence_source": {
+            "$ref": "#/components/schemas/ConfidenceSource"
+          },
+          "sources_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sources Count"
+          },
+          "source_types": {
+            "items": {
+              "$ref": "#/components/schemas/SourceType"
+            },
+            "type": "array",
+            "title": "Source Types"
+          },
+          "current_share": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Current Share"
+          },
+          "baseline_share": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Baseline Share"
+          },
+          "current_n": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Current N"
+          },
+          "baseline_n": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Baseline N"
+          },
+          "trend_corroborated": {
+            "type": "boolean",
+            "title": "Trend Corroborated"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SignalStatus"
+          },
+          "brand_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Brand Id"
+          },
+          "investigation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investigation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "aspect",
+          "growth",
+          "impact",
+          "confidence",
+          "confidence_source",
+          "sources_count",
+          "source_types",
+          "current_share",
+          "baseline_share",
+          "current_n",
+          "baseline_n",
+          "trend_corroborated",
+          "status",
+          "brand_id"
+        ],
+        "title": "SignalSummary",
+        "description": "One entry of dashboard `signals[]`, sorted by score descending."
+      },
+      "Source": {
+        "properties": {
+          "source_type": {
+            "$ref": "#/components/schemas/SourceType"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snippet"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "date_confidence": {
+            "$ref": "#/components/schemas/DateConfidence"
+          },
+          "collected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Collected At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_type",
+          "domain",
+          "url",
+          "title",
+          "date_confidence",
+          "collected_at"
+        ],
+        "title": "Source"
+      },
+      "SourceCoverage": {
+        "properties": {
+          "source_type": {
+            "$ref": "#/components/schemas/CoverageSourceType"
+          },
+          "supporting": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Supporting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_type",
+          "supporting"
+        ],
+        "title": "SourceCoverage"
+      },
+      "SourceType": {
+        "type": "string",
+        "enum": [
+          "web",
+          "news",
+          "youtube",
+          "forum",
+          "shopping"
+        ],
+        "title": "SourceType"
+      },
+      "Stance": {
+        "type": "string",
+        "enum": [
+          "supports",
+          "contradicts",
+          "neutral"
+        ],
+        "title": "Stance"
+      },
+      "StepState": {
+        "type": "string",
+        "enum": [
+          "done",
+          "active",
+          "pending"
+        ],
+        "title": "StepState",
+        "description": "State of one investigation step (API.md section 3.8)."
+      },
+      "TargetBlock": {
+        "properties": {
+          "brand": {
+            "$ref": "#/components/schemas/BrandRef"
+          },
+          "sample_size": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sample Size"
+          },
+          "baseline_sample_size": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Baseline Sample Size"
+          },
+          "growth_sample_size": {
+            "$ref": "#/components/schemas/GrowthSampleSize"
+          },
+          "low_data": {
+            "type": "boolean",
+            "title": "Low Data"
+          },
+          "health": {
+            "$ref": "#/components/schemas/HealthScores"
+          },
+          "sentiment": {
+            "$ref": "#/components/schemas/SentimentDistribution"
+          },
+          "aspects": {
+            "items": {
+              "$ref": "#/components/schemas/AspectStat"
+            },
+            "type": "array",
+            "title": "Aspects"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/TopicCount"
+            },
+            "type": "array",
+            "title": "Topics"
+          },
+          "source_mix": {
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0.0
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/SourceType"
+            },
+            "type": "object",
+            "title": "Source Mix"
+          },
+          "search_interest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchInterest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "brand",
+          "sample_size",
+          "baseline_sample_size",
+          "growth_sample_size",
+          "low_data",
+          "health",
+          "sentiment",
+          "aspects",
+          "topics",
+          "source_mix"
+        ],
+        "title": "TargetBlock"
+      },
+      "TopSignal": {
+        "properties": {
+          "aspect": {
+            "type": "string",
+            "title": "Aspect"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/ImpactLevel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aspect",
+          "impact"
+        ],
+        "title": "TopSignal"
+      },
+      "TopicCount": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic",
+          "count"
+        ],
+        "title": "TopicCount"
+      },
+      "UsageGroq": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "calls_today": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Calls Today"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "calls_today"
+        ],
+        "title": "UsageGroq"
+      },
+      "UsageResponse": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Month"
+          },
+          "serpapi": {
+            "$ref": "#/components/schemas/UsageSerpapi"
+          },
+          "groq": {
+            "$ref": "#/components/schemas/UsageGroq"
+          },
+          "analyses_today": {
+            "$ref": "#/components/schemas/AnalysesToday"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "serpapi",
+          "groq",
+          "analyses_today"
+        ],
+        "title": "UsageResponse"
+      },
+      "UsageSerpapi": {
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Limit"
+          },
+          "used": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Used"
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Remaining"
+          },
+          "reserve": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Reserve"
+          },
+          "live_enabled": {
+            "type": "boolean",
+            "title": "Live Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "limit",
+          "used",
+          "remaining",
+          "reserve",
+          "live_enabled"
+        ],
+        "title": "UsageSerpapi"
+      },
+      "Warning": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisStage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "Warning"
+      },
+      "WindowKind": {
+        "type": "string",
+        "enum": [
+          "baseline",
+          "current"
+        ],
+        "title": "WindowKind"
+      }
+    }
+  }
+}

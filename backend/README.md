@@ -1,0 +1,29 @@
+# BrandPulse backend
+
+FastAPI backend and contract layer. The backend is the only database accessor.
+
+## Phase 0 commands
+
+```bash
+pip install -e ".[dev]"
+python scripts/export_openapi.py --check
+python scripts/validate_golden.py
+pytest
+ruff check .
+ruff format --check .
+```
+
+## Phase 2: SerpApi layer
+
+Code in `app/services/serpapi/` (see its README), tables `serp_cache` and `serp_usage`
+(migration `0002`). Run `alembic upgrade head` with `DATABASE_URL_DIRECT` set. Tests need no
+network. DB tests run only when `TEST_DATABASE_URL` is set.
+
+```bash
+python scripts/record_serp_fixtures.py --brand Samsung --product "Galaxy S25 Ultra" --as-of 2026-08-10
+```
+
+That command is plan-only. Recording live fixtures needs `--live --confirm-credits N` plus
+`ALLOW_LIVE_SERPAPI=true`.
+
+Live SerpApi/Groq calls are disabled by default. Do not commit `.env` or any API key.
