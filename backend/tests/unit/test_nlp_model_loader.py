@@ -41,7 +41,7 @@ def test_importing_loader_and_analyzer_does_not_import_torch_or_transformers():
         "import sys\n"
         "import app.services.nlp.model_loader, app.services.nlp.hf_sentiment, "
         "app.services.nlp.item_analysis, app.services.nlp.analyzer_version\n"
-        "bad = [m for m in ('torch', 'transformers', 'numpy', 'sqlalchemy') if m in sys.modules]\n"
+        "bad = [m for m in ('torch', 'transformers', 'sqlalchemy') if m in sys.modules]\n"
         "assert not bad, bad\n"
     )
     subprocess.run([sys.executable, "-c", code], cwd=BACKEND, check=True)

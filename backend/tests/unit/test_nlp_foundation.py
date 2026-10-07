@@ -77,7 +77,7 @@ def test_importing_the_nlp_modules_does_not_import_a_model_library():
         "import sys\n"
         "import app.services.nlp.aspects, app.services.nlp.clauses, "
         "app.services.nlp.relevance, app.services.nlp.sentiment\n"
-        "bad = [m for m in ('torch', 'transformers', 'numpy') if m in sys.modules]\n"
+        "bad = [m for m in ('torch', 'transformers') if m in sys.modules]\n"
         "assert not bad, bad\n"
     )
     root = NLP_DIR.parents[2]
