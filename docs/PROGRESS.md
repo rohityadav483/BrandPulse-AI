@@ -14,6 +14,25 @@
 ---
 
 
+## Latest User Verification — Windows (2026-10-07)
+
+The user independently reran the available backend, NLP, frontend, and database checks from `C:\AntiGravity\BrandPulseAI` on Windows. These results supersede older local-verification statements where they conflict.
+
+- Backend `pytest -q`: **847 passed, 227 skipped, 3 deselected** in ~44s.
+- Backend `pytest -q --maxfail=1`: **847 passed, 227 skipped, 3 deselected** in ~40s.
+- `ruff check .`: **clean**.
+- `ruff format --check .`: **170 files already formatted**.
+- `python -m compileall app`: **passed**.
+- Stub NLP evaluation: **accuracy 0.9483, Macro-F1 0.9484**; aspect detection recall **0.9733 (73/75)**; aspect sentiment accuracy **0.8219**, Macro-F1 **0.8237**. These remain **stub-only metrics**, not real-model metrics.
+- Frontend `npm install`: completed; npm reported **15 vulnerabilities (3 moderate, 9 high, 3 critical)**. No `npm audit fix --force` was run.
+- Frontend `npm run lint`: **clean**.
+- Frontend `npm run test`: **21/21 tests passed**.
+- Frontend `npm run build`: **passed**.
+- Frontend `npm run dev`: started successfully at `http://localhost:3000`; golden routes compiled successfully during the smoke run.
+- `python -m alembic current`: initially exposed a stale `alembic.exe` launcher pointing to the old `.env` virtualenv; using `python -m alembic` bypassed that launcher issue.
+- After correcting the configured Supabase connection string/network path: `python -m alembic upgrade head` **passed**, `python -m alembic check` returned **No new upgrade operations detected**, and `python -m alembic current` returned **`0005 (head)`**.
+- Therefore the configured Supabase PostgreSQL connection is now reachable for Alembic and the database is at migration head `0005`. Application `/health` against this Supabase database and live application data flow remain unverified.
+
 [PREVIOUS VERIFICATION — 2026-10-07, superseded by the Phase 4.3 evidence at the top]
 - Uploaded Phase 4.2 code was retested after the previous verification.
 - Initial retest exposed 2 failures in the NLP import-guard tests.
@@ -28,23 +47,23 @@
 ## 1. Current Status
 
 ```text
-MVP STATUS: PHASES 0–4.3 IMPLEMENTED; BACKEND VERIFIED (1074 passed with PostgreSQL); PHASE 4 REAL-MODEL VALIDATION STILL PENDING (real model never run)
+MVP STATUS: PHASES 0–4.3 IMPLEMENTED; BACKEND VERIFIED LOCALLY (847 passed on the user's Windows environment without TEST_DATABASE_URL; 1074 passed in the PostgreSQL verification environment); PHASE 4 REAL-MODEL VALIDATION STILL PENDING (real model never run)
 CURRENT PHASE: 4 (local NLP), steps 4.1, 4.2 and 4.3 done (4.3 = keywords/topics, labeled eval set, `scripts/run_eval.py`); Phase 4 is NOT closed: real-model run, `neutral_margin` tuning, model choice and throughput/memory still need a machine with torch and Hugging Face access
-CURRENT MILESTONE: M1 (Clickable demo): full golden journey implemented; manual visual check on desktop/mobile pending
-OVERALL COMPLETION: Phases 0-3 implemented (Phase 0 accounts, Phase 1 visual check and Phase 2 live probe pending); Phases 4-10 not started
-LAST UPDATED: 2026-10-07 (Phase 4.3)
+CURRENT MILESTONE: M1 (Clickable demo): full golden journey implemented; runtime/build verification passed locally; manual visual check on desktop/mobile pending
+OVERALL COMPLETION: Phases 0–4.3 implemented; Phase 4 remains open only for real-model validation; Phase 5+ not started
+LAST UPDATED: 2026-10-07 (post-Phase-4.3 Windows verification)
 ```
 ## 2. Executive Summary
 
-- **Works (verified from the user's Windows run):** backend dependencies installed, OpenAPI is current, 155 tests passed and 31 migration tests skipped without `TEST_DATABASE_URL`, Ruff check/format passed, Uvicorn started, and `/api/v1/health` returned 200.
+- **Works (verified from the user's latest Windows run):** backend 847 tests passed (227 skipped, 3 deselected), Ruff check/format passed, Python compileall passed, frontend lint/test/build passed, frontend dev server started, and Alembic reached `0005 (head)` with no pending operations.
 - **Implemented in this pass:** golden Samsung fixture + formula tests, deterministic scoring helpers, Next.js/TypeScript/Tailwind frontend, typed API client with golden mode, golden dashboard → investigation → evidence flow, scoring/design docs, CI workflow, frontend/backend module READMEs, and contract coverage checks.
 - **Phase 3.1 (2026-10-07):** canonical `RawItem` contract hardened, `raw_items` table (migration `0003`), `RawItemRepository`, 108 new tests; Phase 2 verified for the first time on real pytest/Ruff/PostgreSQL (see section 18).
 - **Phase 3.2 (2026-10-07):** `services/processing` (cleaner, normalizer, dates, dedupe, processor), `content_items` table (migration `0004`), `ContentItemRepository`, pipeline stage `process_raw_items` (reads `raw_items`, writes `content_items`), 270 new tests. See section 4.
 - **Phase 4.1 (2026-10-07):** `services/nlp` foundation: rule-based relevance, clause splitting, aspect lexicon (`config/taxonomy.py`), `SentimentAnalyzer` protocol + deterministic stub, 185 new unit tests. No model, DB, API or pipeline change. See section 4 and the verification caveat at the top of this file.
 - **Phase 4.2 (2026-10-07):** `HFSentimentAnalyzer` + lazy `model_loader` (torch/transformers imported only on first inference), `analyzer_version`, `item_analysis`, tables `content_analysis` / `item_aspects` (migration `0005`), `ContentAnalysisRepository` / `ItemAspectRepository`, reuse by `(content_hash, analyzer_version)`. 157 net new tests (1017 total with PostgreSQL). Real model **not run**. No pipeline, API, OpenAPI, frontend or Phase 4.1 behavior change. See section 4.
 - **Phase 4.3 (2026-10-07):** `services/nlp/keywords.py` + `topics.py` (deterministic, per-text), wired into `analyze_items` (so `content_analysis.keywords/topics` are now filled; `analyzer_version` gained `keywords-1|topics-1`), `services/nlp/evaluation.py` (pure metrics/runner), labeled set `tests/fixtures/nlp/sentiment_eval_v1.json` (58 items), `scripts/run_eval.py`. One bug found and fixed: a half-installed torch raises `OSError` on import, which `load_sequence_classifier` did not turn into `ModelUnavailableError`. Real model **not run** (Hugging Face unreachable). No pipeline, API, OpenAPI, frontend, migration, SerpApi or Groq change. See section 4 and section 13.
-- **Not externally completed:** Supabase, SerpApi, and Groq account creation/keys. No live calls were made.
-- **Frontend verification (Phase 1 pass):** npm access worked; `npm ci`, typecheck, lint, test (21 passed) and build all pass, and a `next start` smoke test returned 200 on all 8 golden routes.
+- **External services:** the configured Supabase PostgreSQL connection is now verified through Alembic (`0005 (head)` and no pending operations). SerpApi and Groq account/keys/live calls remain pending; no live SerpApi/Groq calls were made.
+- **Frontend verification (latest Windows run):** `npm install`, lint, 21 tests and production build passed; `next dev` started successfully and compiled the golden routes. A full browser visual check is still pending.
 - **Can it be demonstrated?** Yes. Golden mode needs only the frontend (see section 7b); no external credits are required.
 ## 3. Phase Progress
 
@@ -196,7 +215,7 @@ When this pass began, `services/processing/cleaner.py`, `dates.py` and `normaliz
 | `services/competitors` | Golden display only; real snapshots later |
 | `services/recommendations` | Golden display only; generator later |
 | `services/llm` | Planned for Phase 7 |
-| Supabase PostgreSQL + SQLAlchemy 2 + Alembic | Local migration foundation implemented; Supabase account/connection still pending |
+| Supabase PostgreSQL + SQLAlchemy 2 + Alembic | Migration foundation implemented; configured Supabase PostgreSQL connectivity verified through Alembic, head `0005`; app runtime still pending |
 ## 7. Frontend Status
 
 Phase 0 baseline (still in place; Phase 1 details in 7a):
@@ -209,7 +228,7 @@ Phase 0 baseline (still in place; Phase 1 details in 7a):
 - Landing, analyze, dashboard, investigation and evidence screens render the Samsung scenario.
 - Backend-only score ownership is preserved; frontend formats values.
 
-Phase 1 added the progress UI, error/empty/low-data/partial/quota states, responsive layouts and component tests. Still not done: manual visual check, real live API journey (backend endpoints are 501 stubs).
+Phase 1 added the progress UI, error/empty/low-data/partial/quota states, responsive layouts and component tests. Latest Windows verification passed lint, 21 tests and build, and the dev server started successfully. Still not done: manual visual check and real live API journey (backend endpoints are 501 stubs).
 ## 7a. Phase 1 Frontend Summary (2026-10-06)
 
 Scope followed: `docs/PHASES.md` / `DEVELOPMENT_PLAN.md` Phase 1 (frontend on golden data). No backend, DB, API, OpenAPI, golden JSON or scoring changes. Backend/pipeline work stays in Phases 2-6.
@@ -230,7 +249,7 @@ cp .env.example .env.local   # sets NEXT_PUBLIC_USE_GOLDEN=true
 npm run dev                  # http://localhost:3000  (shortcut: /dashboard/demo)
 ```
 Checks: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`.
-Backend (optional): `cd backend && pip install -e ".[dev]" && pytest`; `uvicorn app.main:app --reload` needs `DATABASE_URL` in `backend/.env`; only `/api/v1/health` is functional.
+Backend (optional): `cd backend && pip install -e ".[dev]" && pytest`; use `python -m alembic ...` on Windows if the standalone `alembic.exe` launcher points at a stale virtualenv. Current database migration head is `0005`; only `/api/v1/health` is functional among the documented business endpoints.
 
 ## 8. Backend Status
 
@@ -279,7 +298,7 @@ Design: `DATABASE.md` (v2.1). Migration order: P0 brands/analyses/analysis_brand
 | investigations, evidence | No | No | No | No | No |
 | recommendations | No | No | No | No | No |
 
-Alembic status: set up, head = `0005` (content_analysis, item_aspects); `0004` = content_items; `0003` = raw_items; `0002` = serp_cache, serp_usage; `0001` creates all 17 enums from §3 up front, per §9 "enums" in Phase 0. Migration tests (123 in `test_migrations.py`, covering `0001`-`0004`, upgrade, downgrade to `0003`/`0002`/`0001`/base, drift check), run against a blank throwaway PostgreSQL 16 database (skipped unless `TEST_DATABASE_URL` is set). RLS: not applied (Supabase-specific, not part of this migration). DB connectivity: `/health` returned `database: ok` on the migrated local Postgres 16; failure path verified with a refused port (no password logged). Supabase itself: NOT verified. Schema drift: none (`alembic check` and a `compare_metadata` test are clean). `pgcrypto`: not needed (`gen_random_uuid()` is built in on PG 13+).
+Alembic status: set up, head = `0005` (content_analysis, item_aspects); `0004` = content_items; `0003` = raw_items; `0002` = serp_cache, serp_usage; `0001` creates all 17 enums from §3 up front, per §9 "enums" in Phase 0. Migration tests (123 in `test_migrations.py`, covering `0001`-`0004`, upgrade, downgrade to `0003`/`0002`/`0001`/base, drift check), run against a blank throwaway PostgreSQL 16 database (skipped unless `TEST_DATABASE_URL` is set). RLS: not applied (Supabase-specific, not part of this migration). DB connectivity: `/health` returned `database: ok` on the migrated local Postgres 16; failure path verified with a refused port (no password logged). Supabase PostgreSQL connectivity: **verified by the user via Alembic** (`python -m alembic upgrade head`, `check`, `current` = `0005 (head)`). Application runtime against Supabase is not yet verified. Schema drift: none (`alembic check` and a `compare_metadata` test are clean). `pgcrypto`: not needed (`gen_random_uuid()` is built in on PG 13+).
 
 ## 11. SerpApi Status and Budget
 
@@ -347,6 +366,7 @@ Not implemented: generator, evidence linkage, priority from impact + confidence,
 
 | Category | Status |
 |---|---|
+| Latest user Windows verification (2026-10-07) | **847 backend passed, 227 skipped, 3 deselected; Ruff clean; 170 files formatted; compileall passed; frontend lint + 21 tests + build passed; dev server started; Alembic `upgrade head` + `check` + `current`=`0005 (head)` passed.** |
 | Backend full suite (2026-10-07, Phase 4.3 pass) | **1074 passed** with `TEST_DATABASE_URL` (local PostgreSQL 16); **847 passed, 227 skipped, 3 deselected** without it. Before 4.3 (as uploaded): 790 passed, 227 skipped, 3 deselected without PostgreSQL (the 2 NLP import-guard failures from the NumPy/Pydantic transitive import had been fixed in the commit `Fix NLP import guard tests`). Real NLP model not run |
 | Golden fixture/formulas | 7 passed in this execution environment |
 | OpenAPI export/drift | Verified by user's Windows run; `openapi.json` up to date |
@@ -403,6 +423,14 @@ Push/tag: not performed
 ## 22. Known Issues
 
 ```text
+Issue: Standalone `alembic.exe` launcher on Windows points to an old `.env` virtualenv.
+Detail: `alembic current` failed because its launcher referenced `backend\.env\Scripts\python.exe`; `python -m alembic ...` works correctly from the active `.venv`.
+Status: WORKAROUND VERIFIED. Use `python -m alembic` on this Windows setup.
+
+Issue: Frontend npm audit reports 15 vulnerabilities (3 moderate, 9 high, 3 critical).
+Detail: Reported by `npm install`; no forced dependency upgrade was performed.
+Status: OPEN; inspect with `npm audit` before deciding whether a safe non-breaking fix is appropriate.
+
 Issue: Real NLP model never run (OPEN, Phase 4.3).
 Detail: Hugging Face hosts returned 403 from the sandbox and `pip install torch` ran out of disk (CUDA build). The three `model`-marked tests and `run_eval.py --analyzer hf` are untested against a real model. Possible real-library mismatches (label order, tokenizer options, memory) are unknown.
 Next: run the commands in section 4 ("Phase 4.3 evaluation results") on a machine with access.
@@ -706,13 +734,14 @@ Unchanged: Phase 4.1 behavior and interfaces, API routes, contracts/openapi.json
 
 ## 25. Next Steps
 
-0. Phases 2 to 4.3 verified locally on real pytest/Ruff/PG16 (section 18); the real NLP model has not been run (section 22). Review the three pre-existing processing files (section 4, Provenance). Reconcile the returned git history with your own repo (section 20).
-1. Create the Supabase project and provide `DATABASE_URL` / `DATABASE_URL_DIRECT` when ready.
-2. Create/provide SerpApi and Groq keys; keep `ALLOW_LIVE_SERPAPI=false` until Phase 2 live-session approval.
-3. Run frontend `npm install`, `npm run generate:types`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` locally.
-4. Review and commit this Phase 0 implementation on `main`.
-5. Do the manual desktop/mobile visual check against `DESIGN_SYSTEM.md`. Phases 2 and 3 are implemented; approve one small live probe to verify `docs/SERPAPI_FINDINGS.md`, then record real fixtures.
-6. Repo has no commits and branch `master`; AGENTS.md says work on `main`. Create the initial commit on `main` yourself.
+0. **Completed by the user on 2026-10-07:** Windows backend/frontend verification and Supabase Alembic migration verification. See “Latest User Verification” and section 18.
+1. Run the real Hugging Face NLP evaluation on a machine with torch + Hugging Face access; record real accuracy, Macro-F1, per-class metrics, confusion matrix, throughput, cold start and memory; tune `neutral_margin` only from real-model results.
+2. Perform the manual desktop/mobile visual check against `docs/DESIGN_SYSTEM.md`.
+3. Review the three pre-existing processing files (`cleaner.py`, `dates.py`, `normalizer.py`) as documented in the provenance section.
+4. Reconcile the returned ZIP's local git history with the user's actual GitHub repository; keep work on `main` only.
+5. Create/provide SerpApi and Groq keys when ready; keep `ALLOW_LIVE_SERPAPI=false` until the first approved live probe.
+6. Approve one small SerpApi live probe, verify the 11 assumptions in `docs/SERPAPI_FINDINGS.md`, and record real fixtures.
+7. After Phase 4 is closed, start **Phase 5 — Signals, Scoring and Brand Health**.
 ## 26. AI Handoff
 
 ### Current Situation
@@ -730,15 +759,15 @@ Phase 0 (contracts, backend skeleton), Phase 1 (golden frontend journey), Phase 
 - Reconcile the git history in the returned zip with your own repository (section 20).
 
 ### Exact next task
-Close Phase 4 on a machine that has torch and Hugging Face access: (a) `cd backend && pip install -e ".[nlp]" && python scripts/run_eval.py --analyzer hf --sweep --show-errors --json-out eval_hf.json` and `pytest -m model tests/evals/test_real_sentiment_model.py`; fix any real-library mismatch; (b) record accuracy, Macro-F1, per-class metrics, confusion matrix, cold start, texts/second and peak memory in this file exactly as printed; (c) change `neutral_margin` (`DEFAULT_NEUTRAL_MARGIN` in `hf_sentiment.py`) only if the sweep shows a clear gain beyond the 1.7-point-per-item noise, then rerun; (d) decide whether the model meets the plan thresholds (accuracy >= 0.75, Macro-F1 >= 0.70) or evaluate another shortlist model (`ARCHITECTURE.md` 5.1). Then Phase 5. Phase 6 will compose `analyze_items` + `ContentAnalysisRepository.copy_reusable` / `save_many` into a stage (the test helper `run_stage` in `tests/integration/test_content_analysis_repository.py` shows the intended sequence). Do not load the real model in default tests. Before Phase 6 wiring, supply `reference_times` from `serp_cache.fetched_at` (section 22). No live calls until `ALLOW_LIVE_SERPAPI=true` is approved.
+Close Phase 4 on a machine that has torch and Hugging Face access: (a) `cd backend && pip install -e ".[nlp]" && python scripts/run_eval.py --analyzer hf --sweep --show-errors --json-out eval_hf.json` and `pytest -m model tests/evals/test_real_sentiment_model.py`; fix any real-library mismatch; (b) record accuracy, Macro-F1, per-class metrics, confusion matrix, cold start, texts/second and peak memory in this file exactly as printed; (c) change `neutral_margin` (`DEFAULT_NEUTRAL_MARGIN` in `hf_sentiment.py`) only if the sweep shows a clear gain beyond the 1.7-point-per-item noise, then rerun; (d) decide whether the model meets the plan thresholds (accuracy >= 0.75, Macro-F1 >= 0.70) or evaluate another shortlist model (`ARCHITECTURE.md` 5.1). Then start Phase 5. Phase 6 will compose `analyze_items` + `ContentAnalysisRepository.copy_reusable` / `save_many` into a stage. Do not load the real model in default tests. Before Phase 6 wiring, supply `reference_times` from `serp_cache.fetched_at`. No live SerpApi calls until `ALLOW_LIVE_SERPAPI=true` is approved.
 
 ## 27. Definition of Current MVP Status
 
 ```text
-MVP STATUS: PHASES 0-3 + 4.1 + 4.2 + 4.3 IMPLEMENTED AND BACKEND-VERIFIED LOCALLY (NOT WIRED INTO A REAL RUN; REAL NLP MODEL NEVER RUN); EXTERNAL ACCOUNT SETUP PENDING
+MVP STATUS: PHASES 0-3 + 4.1 + 4.2 + 4.3 IMPLEMENTED AND VERIFIED LOCALLY; REAL NLP MODEL NEVER RUN; SUPABASE ALEMBIC CONNECTIVITY VERIFIED; SERPAPI/GROQ LIVE SETUP PENDING
 CURRENT PHASE: 4 (steps 4.1, 4.2, 4.3 done); Phase 4 closes only after the real-model run and margin decision
-CURRENT MILESTONE: M1 clickable demo, golden flow implemented (visual check pending)
-NEXT REQUIRED ACTION: run `scripts/run_eval.py --analyzer hf --sweep` and the `model` tests where torch and Hugging Face are reachable; review the three pre-existing processing files; manual visual check; supply external accounts/keys
+CURRENT MILESTONE: M1 clickable demo, golden flow implemented; frontend lint/test/build and dev-server smoke verified; visual check pending
+NEXT REQUIRED ACTION: run `scripts/run_eval.py --analyzer hf --sweep` and the `model` tests where torch and Hugging Face are reachable; then close Phase 4 and start Phase 5
 ```
 
 ## Latest Checkpoint
@@ -746,14 +775,17 @@ NEXT REQUIRED ACTION: run `scripts/run_eval.py --analyzer hf --sweep` and the `m
 **Phase 4.3 is code-complete and backend-tested. Phase 4 is not closed: the real Hugging Face model was not run.**
 
 Latest verified state (2026-10-07):
-- 1074 backend tests passed with PostgreSQL 16 (847 passed, 227 skipped without), 3 `model` tests deselected
-- `ruff check .` and `ruff format --check .` clean; `compileall`, OpenAPI check, golden validation, type contract, Alembic upgrade/check/downgrade/re-upgrade ok
-- Eval set: 58 labeled items; stub-only metrics recorded in section 4 (not model metrics); lexicon aspect recall 73/75
-- `neutral_margin` unchanged at 0.15 (no real results to tune on)
+- User Windows backend: **847 passed, 227 skipped, 3 deselected**; `pytest -q --maxfail=1` also passed with the same result.
+- User Windows backend quality: `ruff check .` clean, `ruff format --check .` clean for 170 files, `compileall app` passed.
+- User Windows NLP stub evaluation: accuracy **0.9483**, Macro-F1 **0.9484**; aspect recall **0.9733 (73/75)**; aspect sentiment accuracy **0.8219**, Macro-F1 **0.8237**. These are stub metrics only.
+- User Windows frontend: `npm install` completed, lint passed, **21/21 tests passed**, production build passed, and `npm run dev` started successfully.
+- User Windows database: `python -m alembic upgrade head` passed; `python -m alembic check` reported **No new upgrade operations detected**; `python -m alembic current` returned **`0005 (head)`**.
+- Supabase PostgreSQL connectivity is therefore verified at the Alembic level; application runtime against Supabase remains unverified.
+- Real Hugging Face model `cardiffnlp/twitter-roberta-base-sentiment-latest` remains **NOT RUN**; `neutral_margin` remains 0.15 and untuned.
 
 Next:
-1. On a machine with torch and Hugging Face access: run `scripts/run_eval.py --analyzer hf --sweep` and the `model` tests
-2. Record real accuracy, Macro-F1, per-class metrics, confusion matrix, throughput, cold start, memory
-3. Decide `neutral_margin` and the model from those results
-4. Finalize Phase 4
-5. Start Phase 5: Signals, Scoring and Brand Health
+1. Run the real-model evaluation where torch and Hugging Face are reachable.
+2. Record real accuracy, Macro-F1, per-class metrics, confusion matrix, throughput, cold start and memory.
+3. Decide `neutral_margin` and the model from those results.
+4. Perform the manual desktop/mobile visual check.
+5. Finalize Phase 4 and start Phase 5: Signals, Scoring and Brand Health.
