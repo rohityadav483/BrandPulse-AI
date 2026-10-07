@@ -209,6 +209,15 @@ Constraints and indexes:
 - Index `(analysis_id, source_type)`.
 - Index `(content_hash)` for cross-analysis NLP reuse.
 
+Phase 3.2 implementation notes (migration `0004`):
+- Filled from `raw_items` (5.4a) by the processing stage; `url` is the canonical URL, `published_at` is parsed from `raw_items.published_raw` / `published_iso`.
+- `window` is null for investigation items (check `investigation_no_window`) and also for a collection item whose known date lies outside both windows: it is kept but counts in no window.
+- Check `date_matches_confidence`: `published_at` is null exactly when `date_confidence = 'unknown'`.
+- `query` is NOT NULL; an item with no recorded query stores `''`.
+- Also checked: `engine_allowed`, non-blank `title`/`url`/`domain`, sha256-hex `url_hash`/`content_hash`/`dup_group`.
+- Two lookup indexes beyond the list above: `(analysis_id, brand_id, url_hash)` (URL-level duplicate check) and `(analysis_id, dup_group)` (independence counting).
+- No foreign key to `raw_items` or `serp_cache` (`serp_cache_key` is a trace pointer).
+
 ### 5.6 `content_analysis`
 One row per item; output of the local NLP pipeline.
 
@@ -447,7 +456,7 @@ All writes within one stage happen in one transaction where practical. A failed 
 | 0 | extensions (`pgcrypto` if needed), enums, `brands`, `analyses`, `analysis_brands` |
 | 2 | `serp_cache` (with `pinned`), `serp_usage` (with `account_label`; `investigation_id` as plain column) |
 | 3.1 | `raw_items` (migration `0003`) |
-| 3.2 | `content_items` |
+| 3.2 | `content_items` (migration `0004`) |
 | 4 | `content_analysis`, `item_aspects` |
 | 5 | `trend_points`, `brand_snapshots`, `signals` |
 | 6 | `llm_calls` (`investigation_id` as plain column) |

@@ -50,6 +50,12 @@ class ContentPurpose(enum.StrEnum):
     investigation = "investigation"
 
 
+class DateConfidence(enum.StrEnum):
+    exact = "exact"
+    approximate = "approximate"
+    unknown = "unknown"
+
+
 def pg_enum(py_enum: type[enum.StrEnum], name: str) -> ENUM:
     """Column type for an existing Postgres enum (the migration owns CREATE TYPE)."""
     return ENUM(

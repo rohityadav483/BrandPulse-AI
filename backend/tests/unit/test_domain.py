@@ -66,6 +66,7 @@ def test_enum_values_match_database_md(pg_name):
         "SourceType",
         "WindowKind",
         "ContentPurpose",
+        "DateConfidence",
     ],
 )
 def test_enums_match_db_model_mirrors(name):

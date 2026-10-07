@@ -141,10 +141,10 @@ def _new_analysis(conn, brand_id, **overrides) -> uuid.UUID:
 
 def test_upgrade_head_on_blank_database(migrated):
     with migrated.connect() as c:
-        assert _rows(c, "SELECT version_num FROM alembic_version") == [("0003",)]
+        assert _rows(c, "SELECT version_num FROM alembic_version") == [("0004",)]
 
 
-def test_only_phase_0_2_and_3_1_tables_exist(migrated):
+def test_only_phase_0_2_3_tables_exist(migrated):
     with migrated.connect() as c:
         tables = {
             r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")
@@ -157,6 +157,7 @@ def test_only_phase_0_2_and_3_1_tables_exist(migrated):
         "serp_cache",
         "serp_usage",
         "raw_items",
+        "content_items",
     }
 
 
@@ -370,7 +371,7 @@ def test_downgrade_to_base_then_upgrade_again():
         assert enums == []
         command.upgrade(cfg, "head")
         with engine.connect() as c:
-            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0003",)]
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0004",)]
         engine.dispose()
 
 
@@ -441,19 +442,42 @@ def test_serp_indexes_exist(migrated):
     assert {"ix_serp_cache_expires_at", "ix_serp_usage_created_at"} <= names
 
 
-def test_downgrade_to_0002_removes_only_raw_items():
+def _tables(engine):
+    with engine.connect() as c:
+        return {r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")}
+
+
+def test_downgrade_to_0003_removes_only_content_items():
     with blank_database() as url:
         cfg = _cfg(url)
         command.upgrade(cfg, "head")
         command.downgrade(cfg, "-1")
         engine = create_engine(url)
         with engine.connect() as c:
-            tables = {
-                r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")
-            }
-            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0002",)]
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0003",)]
             enums = _rows(c, "SELECT count(*) FROM pg_type WHERE typtype = 'e'")
-        assert tables == {
+        assert _tables(engine) == {
+            "alembic_version",
+            "brands",
+            "analyses",
+            "analysis_brands",
+            "serp_cache",
+            "serp_usage",
+            "raw_items",
+        }
+        assert enums == [(17,)]  # content_items never owned an enum
+        engine.dispose()
+
+
+def test_downgrade_to_0002_removes_raw_and_content_items():
+    with blank_database() as url:
+        cfg = _cfg(url)
+        command.upgrade(cfg, "head")
+        command.downgrade(cfg, "0002")
+        engine = create_engine(url)
+        with engine.connect() as c:
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0002",)]
+        assert _tables(engine) == {
             "alembic_version",
             "brands",
             "analyses",
@@ -461,7 +485,8 @@ def test_downgrade_to_0002_removes_only_raw_items():
             "serp_cache",
             "serp_usage",
         }
-        assert enums == [(17,)]  # raw_items never owned an enum
+        command.upgrade(cfg, "head")  # and back up again
+        assert "content_items" in _tables(engine)
         engine.dispose()
 
 
@@ -664,3 +689,196 @@ def test_raw_items_enum_columns_reject_unknown_values(ctx):
         _new_raw_item(conn, analysis, brand, window="future")
     with pytest.raises(DataError), conn.begin_nested():
         _new_raw_item(conn, analysis, brand, purpose="other")
+
+
+# ---------- Phase 3.2: content_items ----------
+
+HASH_A, HASH_B, HASH_C = "a" * 64, "b" * 64, "c" * 64
+
+
+def _new_content_item(conn, analysis_id, brand_id, **overrides) -> uuid.UUID:
+    values = {
+        "analysis_id": analysis_id,
+        "brand_id": brand_id,
+        "purpose": "collection",
+        "window": "current",
+        "source_type": "news",
+        "engine": "google_news",
+        "url": "https://news.example.test/a",
+        "url_hash": HASH_A,
+        "domain": "news.example.test",
+        "title": "Galaxy S25 Ultra battery drain",
+        "date_confidence": "unknown",
+        "query": "samsung",
+        "content_hash": HASH_B,
+    } | overrides
+    cols = ", ".join(f'"{k}"' for k in values)
+    params = ", ".join(f":{k}" for k in values)
+    return conn.execute(
+        text(f"INSERT INTO content_items ({cols}) VALUES ({params}) RETURNING id"), values
+    ).scalar_one()
+
+
+def test_content_items_columns_match_database_md(migrated):
+    with migrated.connect() as c:
+        rows = _rows(
+            c,
+            """SELECT column_name, is_nullable, udt_name FROM information_schema.columns
+               WHERE table_name = 'content_items'""",
+        )
+    assert {name: (null, udt) for name, null, udt in rows} == {
+        "id": ("NO", "uuid"),
+        "analysis_id": ("NO", "uuid"),
+        "brand_id": ("NO", "uuid"),
+        "purpose": ("NO", "content_purpose"),
+        "window": ("YES", "window_kind"),
+        "source_type": ("NO", "source_type"),
+        "engine": ("NO", "text"),
+        "url": ("NO", "text"),
+        "url_hash": ("NO", "text"),
+        "domain": ("NO", "text"),
+        "title": ("NO", "text"),
+        "snippet": ("YES", "text"),
+        "author": ("YES", "text"),
+        "published_at": ("YES", "timestamptz"),
+        "date_confidence": ("NO", "date_confidence"),
+        "query": ("NO", "text"),
+        "metadata": ("NO", "jsonb"),
+        "content_hash": ("NO", "text"),
+        "dup_group": ("YES", "text"),
+        "serp_cache_key": ("YES", "text"),
+        "collected_at": ("NO", "timestamptz"),
+    }
+
+
+def test_content_items_defaults(ctx):
+    conn, analysis, brand = ctx
+    item_id = _new_content_item(conn, analysis, brand)
+    row = conn.execute(
+        text("SELECT metadata, collected_at IS NOT NULL AS stamped FROM content_items WHERE id=:i"),
+        {"i": item_id},
+    ).one()
+    assert isinstance(item_id, uuid.UUID) and row.metadata == {} and row.stamped
+
+
+def test_content_items_indexes_exist(migrated):
+    with migrated.connect() as c:
+        defs = {
+            r[0]: r[1]
+            for r in _rows(
+                c, "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'content_items'"
+            )
+        }
+    unique = defs["uq_content_items_identity"]
+    assert "UNIQUE" in unique and "(analysis_id, brand_id, content_hash)" in unique
+    assert '(analysis_id, brand_id, "window")' in defs["ix_content_items_analysis_brand_window"]
+    assert "(analysis_id, source_type)" in defs["ix_content_items_analysis_source_type"]
+    assert "(content_hash)" in defs["ix_content_items_content_hash"]
+    assert "(analysis_id, brand_id, url_hash)" in defs["ix_content_items_analysis_brand_url_hash"]
+    assert "(analysis_id, dup_group)" in defs["ix_content_items_analysis_dup_group"]
+    assert "pk_content_items" in defs
+
+
+def test_content_hash_is_unique_per_analysis_and_brand(ctx):
+    conn, analysis, brand = ctx
+    _new_content_item(conn, analysis, brand)
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_content_item(conn, analysis, brand, url="https://other.example.test/x")
+    _new_content_item(conn, analysis, _new_brand(conn, "Apple"))  # other brand
+    _new_content_item(conn, _new_analysis(conn, brand), brand)  # other analysis
+    _new_content_item(conn, analysis, brand, content_hash=HASH_C)  # other text
+
+
+def test_content_items_foreign_keys_and_cascade(ctx):
+    conn, analysis, brand = ctx
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_content_item(conn, uuid.uuid4(), brand)
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_content_item(conn, analysis, uuid.uuid4())
+    _new_content_item(conn, analysis, brand)
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        conn.execute(text("DELETE FROM brands WHERE id = :b"), {"b": brand})
+    conn.execute(text("DELETE FROM analyses WHERE id = :a"), {"a": analysis})
+    assert _rows(conn, "SELECT count(*) FROM content_items") == [(0,)]
+    assert _rows(conn, "SELECT count(*) FROM brands WHERE id = :b", b=brand) == [(1,)]
+
+
+@pytest.mark.parametrize("engine", ["google_trends", "bing", ""])
+def test_content_items_reject_non_content_engines(ctx, engine):
+    conn, analysis, brand = ctx
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_content_item(conn, analysis, brand, engine=engine)
+
+
+@pytest.mark.parametrize("field", ["title", "url", "domain"])
+@pytest.mark.parametrize("value", ["", "   ", "\n\t"])
+def test_content_items_reject_blank_text(ctx, field, value):
+    conn, analysis, brand = ctx
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_content_item(conn, analysis, brand, **{field: value})
+
+
+@pytest.mark.parametrize("field", ["url_hash", "content_hash", "dup_group"])
+@pytest.mark.parametrize("value", ["", "abc", "A" * 64, "g" * 64, "a" * 63, "a" * 65])
+def test_content_items_reject_malformed_hashes(ctx, field, value):
+    conn, analysis, brand = ctx
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_content_item(conn, analysis, brand, **{field: value})
+
+
+def test_dup_group_may_be_null_or_a_sha256(ctx):
+    conn, analysis, brand = ctx
+    _new_content_item(conn, analysis, brand, dup_group=None)
+    _new_content_item(conn, analysis, brand, content_hash=HASH_C, dup_group=HASH_A)
+
+
+@pytest.mark.parametrize(
+    ("confidence", "published_at", "ok"),
+    [
+        ("unknown", None, True),
+        ("exact", "2026-07-30T07:00:00Z", True),
+        ("approximate", "2026-07-20T12:00:00Z", True),
+        ("unknown", "2026-07-30T07:00:00Z", False),
+        ("exact", None, False),
+        ("approximate", None, False),
+    ],
+)
+def test_content_items_date_exists_exactly_when_confidence_is_not_unknown(
+    ctx, confidence, published_at, ok
+):
+    conn, analysis, brand = ctx
+    kwargs = {"date_confidence": confidence, "published_at": published_at}
+    if ok:
+        _new_content_item(conn, analysis, brand, **kwargs)
+    else:
+        with pytest.raises(IntegrityError), conn.begin_nested():
+            _new_content_item(conn, analysis, brand, **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("purpose", "window", "ok"),
+    [
+        ("collection", "current", True),
+        ("collection", "baseline", True),
+        ("collection", None, True),  # dated outside both windows: kept, counts nowhere
+        ("investigation", None, True),
+        ("investigation", "current", False),
+    ],
+)
+def test_content_items_window_rule(ctx, purpose, window, ok):
+    conn, analysis, brand = ctx
+    if ok:
+        _new_content_item(conn, analysis, brand, purpose=purpose, window=window)
+    else:
+        with pytest.raises(IntegrityError), conn.begin_nested():
+            _new_content_item(conn, analysis, brand, purpose=purpose, window=window)
+
+
+def test_content_items_enum_columns_reject_unknown_values(ctx):
+    conn, analysis, brand = ctx
+    with pytest.raises(DataError), conn.begin_nested():
+        _new_content_item(conn, analysis, brand, date_confidence="maybe")
+    with pytest.raises(DataError), conn.begin_nested():
+        _new_content_item(conn, analysis, brand, source_type="podcast")
+    with pytest.raises(DataError), conn.begin_nested():
+        _new_content_item(conn, analysis, brand, window="future")
