@@ -18,7 +18,7 @@ def _cfg(url: str | None = None) -> Config:
     return cfg
 
 
-def test_metadata_has_only_phase_0_2_3_tables():
+def test_metadata_has_only_phase_0_to_4_2_tables():
     assert set(Base.metadata.tables) == {
         "brands",
         "analyses",
@@ -27,6 +27,8 @@ def test_metadata_has_only_phase_0_2_3_tables():
         "serp_usage",
         "raw_items",
         "content_items",
+        "content_analysis",
+        "item_aspects",
     }
     assert Brand.__tablename__ == "brands"
     assert Analysis.__tablename__ == "analyses"
@@ -101,7 +103,9 @@ def test_offline_sql_generation_needs_no_database():
     assert "CREATE TABLE analyses" in sql
     assert "CREATE TABLE analysis_brands" in sql
     assert "CREATE TABLE content_items" in sql
-    assert "CREATE TABLE content_analysis" not in sql  # later phases are not created yet
+    assert "CREATE TABLE content_analysis" in sql
+    assert "CREATE TABLE item_aspects" in sql
+    assert "CREATE TABLE trend_points" not in sql  # later phases are not created yet
 
 
 def test_serp_cache_columns_and_pk():

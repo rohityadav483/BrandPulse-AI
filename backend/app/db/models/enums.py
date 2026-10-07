@@ -56,6 +56,12 @@ class DateConfidence(enum.StrEnum):
     unknown = "unknown"
 
 
+class Sentiment(enum.StrEnum):
+    positive = "positive"
+    neutral = "neutral"
+    negative = "negative"
+
+
 def pg_enum(py_enum: type[enum.StrEnum], name: str) -> ENUM:
     """Column type for an existing Postgres enum (the migration owns CREATE TYPE)."""
     return ENUM(

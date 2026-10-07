@@ -1,8 +1,19 @@
 # services/nlp
 
-Phase 4.1 (NLP foundation). Pure, stdlib-only building blocks for the local NLP pipeline in `docs/ARCHITECTURE.md` section 5.1. No model, no torch, no network, no DB, no I/O. Services here never import other services, `api/`, repositories or DB models; they import only `app.config.taxonomy` and `app.schemas.domain`.
+Phase 4.1 (NLP foundation) plus Phase 4.2 (real local model, `analyzer_version`, item analysis). The 4.1 modules are pure, stdlib-only building blocks for the local NLP pipeline in `docs/ARCHITECTURE.md` section 5.1. No model, no torch, no network, no DB, no I/O. Services here never import other services, `api/`, repositories or DB models; they import only `app.config.taxonomy` and `app.schemas.domain`.
 
-**Not in 4.1:** the real BERT/RoBERTa implementation, `model_loader`, `keywords`, `topics`, `content_analysis` / `item_aspects` tables (migration `0005`), repositories, pipeline stage, API changes. `model_loader.py`, `keywords.py` and `topics.py` are still empty files.
+**Phase 4.2 added** (4.1 modules and behavior unchanged):
+
+| Module | Role |
+|---|---|
+| `model_loader` | Lazy loader. `get_classifier(ClassifierConfig)` is a per-config singleton; `load_sequence_classifier` imports torch/transformers only when it runs, loads on CPU, `eval()`. `ModelUnavailableError` when libraries or files are missing. `clear_classifier_cache()` for tests |
+| `hf_sentiment` | `HFSentimentAnalyzer` implements `SentimentAnalyzer`: lazy (loads on the first non-blank text), batches of 16, label mapping by model label (3-class and binary), probabilities renormalised, margin rule (top class must beat the runner-up by `neutral_margin`, default 0.15, untuned) else `neutral`, blank text = neutral without inference. `HFSentimentAnalyzer.from_settings(settings)` reads `sentiment_model` and `hf_home` |
+| `analyzer_version` | `build_analyzer_version`, `analyzer_version_for(analyzer, category)`: `model\|lexicon\|clause rules\|relevance rules\|category[\|config tag]` |
+| `item_analysis` | `analyze_items(items, profile, analyzer, category)` -> `ItemAnalysis` per item (relevance gate, overall sentiment on title + snippet, aspect clause sentiment), one `analyze` call per batch. Produces `app/schemas/nlp.py` types, which the repositories persist |
+
+Persistence lives outside the services: `app/db/repositories/content_analysis.py` and `item_aspect.py` (services never import repositories). Still empty: `keywords.py`, `topics.py`.
+
+Torch and transformers are optional (`pip install -e ".[nlp]"`); nothing imports them at import time and no unit test loads a model. The one real-model test is `tests/evals/test_real_sentiment_model.py` (marker `model`).
 
 ## Inputs and outputs
 

@@ -238,6 +238,15 @@ One row per item; output of the local NLP pipeline.
 
 Index: `(content_hash, analyzer_version)`. Before running inference, look up this index and copy results for items already analyzed (zero inference on re-runs).
 
+Phase 4.2 implementation notes (migration `0005`, model `ContentAnalysisRow`, `ContentAnalysisRepository`):
+- `content_id` is the PK and a foreign key to `content_items` with ON DELETE CASCADE, so deleting an analysis removes its NLP rows through its content items.
+- `sentiment_score`, `negative_prob` are `real` (float4) as documented; stored values carry float4 precision.
+- `matched_terms`, `topics`, `keywords` default to `'{}'`. `topics` and `keywords` stay empty until those modules exist.
+- Checks: score in [-1, 1], probability in [0, 1], sha256-hex `content_hash`, non-blank `model` and `analyzer_version`. The `(content_hash, analyzer_version)` index is not unique (the same text can be analyzed in several analyses).
+- `analyzer_version` = `model|lexicon|clause rules|relevance rules|category[|config tag]` (`services/nlp/analyzer_version.py`). The category and the sentiment config tag (neutral margin, max length) are part of it because they change the results.
+- Reuse copies only model-derived results (sentiment, scores, topics, keywords, model, aspects, original `analyzed_at`). Relevance is brand-specific, so a reused row takes the caller's `matched_terms` and is `is_about_brand = true`. Only sources with `is_about_brand = true` are reusable: items that are not about the brand never went through inference and get a neutral row.
+- Rows are never overwritten; an item that already has a row is skipped.
+
 ### 5.7 `item_aspects`
 One row per item-aspect pair.
 
@@ -251,6 +260,11 @@ One row per item-aspect pair.
 | score | real NN | −1.0 to 1.0 |
 
 PK `(content_id, aspect)`. Index `(aspect, sentiment)`.
+
+Phase 4.2 implementation notes (migration `0005`, model `ItemAspectRow`, `ItemAspectRepository`):
+- `content_id` is a foreign key to `content_items` with ON DELETE CASCADE (not to `content_analysis`).
+- `negative_prob` and `score` are `real`; checks keep them in [0, 1] and [-1, 1]; `aspect` and `clause` must be non-blank.
+- Written together with the item's `content_analysis` row in one transaction (`ContentAnalysisRepository.save_many`).
 
 ### 5.8 `trend_points`
 Google Trends timeseries.
@@ -457,7 +471,7 @@ All writes within one stage happen in one transaction where practical. A failed 
 | 2 | `serp_cache` (with `pinned`), `serp_usage` (with `account_label`; `investigation_id` as plain column) |
 | 3.1 | `raw_items` (migration `0003`) |
 | 3.2 | `content_items` (migration `0004`) |
-| 4 | `content_analysis`, `item_aspects` |
+| 4.2 | `content_analysis`, `item_aspects` (migration `0005`) |
 | 5 | `trend_points`, `brand_snapshots`, `signals` |
 | 6 | `llm_calls` (`investigation_id` as plain column) |
 | 7 | `investigations`, `evidence`, plus FKs from `serp_usage.investigation_id` and `llm_calls.investigation_id` |

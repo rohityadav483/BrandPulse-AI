@@ -17,6 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Local sentiment model (docs/ARCHITECTURE.md 5.1). Optional: normal tests never import them.
+# Install CPU-only torch first if you do not want the CUDA build.
+nlp = [
+    "torch>=2.2",
+    "transformers>=4.40",
+]
 dev = [
     "pytest>=8",
     "httpx2>=2.0",

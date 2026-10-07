@@ -141,10 +141,10 @@ def _new_analysis(conn, brand_id, **overrides) -> uuid.UUID:
 
 def test_upgrade_head_on_blank_database(migrated):
     with migrated.connect() as c:
-        assert _rows(c, "SELECT version_num FROM alembic_version") == [("0004",)]
+        assert _rows(c, "SELECT version_num FROM alembic_version") == [("0005",)]
 
 
-def test_only_phase_0_2_3_tables_exist(migrated):
+def test_only_phase_0_to_4_2_tables_exist(migrated):
     with migrated.connect() as c:
         tables = {
             r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")
@@ -158,6 +158,8 @@ def test_only_phase_0_2_3_tables_exist(migrated):
         "serp_usage",
         "raw_items",
         "content_items",
+        "content_analysis",
+        "item_aspects",
     }
 
 
@@ -371,7 +373,7 @@ def test_downgrade_to_base_then_upgrade_again():
         assert enums == []
         command.upgrade(cfg, "head")
         with engine.connect() as c:
-            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0004",)]
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0005",)]
         engine.dispose()
 
 
@@ -447,11 +449,36 @@ def _tables(engine):
         return {r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")}
 
 
-def test_downgrade_to_0003_removes_only_content_items():
+def test_downgrade_to_0004_removes_only_the_nlp_tables():
     with blank_database() as url:
         cfg = _cfg(url)
         command.upgrade(cfg, "head")
         command.downgrade(cfg, "-1")
+        engine = create_engine(url)
+        with engine.connect() as c:
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0004",)]
+            enums = _rows(c, "SELECT count(*) FROM pg_type WHERE typtype = 'e'")
+        assert _tables(engine) == {
+            "alembic_version",
+            "brands",
+            "analyses",
+            "analysis_brands",
+            "serp_cache",
+            "serp_usage",
+            "raw_items",
+            "content_items",
+        }
+        assert enums == [(17,)]  # the NLP tables never owned an enum (sentiment is from 0001)
+        command.upgrade(cfg, "head")
+        assert {"content_analysis", "item_aspects"} <= _tables(engine)
+        engine.dispose()
+
+
+def test_downgrade_to_0003_removes_content_and_nlp_tables():
+    with blank_database() as url:
+        cfg = _cfg(url)
+        command.upgrade(cfg, "head")
+        command.downgrade(cfg, "0003")
         engine = create_engine(url)
         with engine.connect() as c:
             assert _rows(c, "SELECT version_num FROM alembic_version") == [("0003",)]
@@ -465,11 +492,11 @@ def test_downgrade_to_0003_removes_only_content_items():
             "serp_usage",
             "raw_items",
         }
-        assert enums == [(17,)]  # content_items never owned an enum
+        assert enums == [(17,)]
         engine.dispose()
 
 
-def test_downgrade_to_0002_removes_raw_and_content_items():
+def test_downgrade_to_0002_removes_raw_content_and_nlp_tables():
     with blank_database() as url:
         cfg = _cfg(url)
         command.upgrade(cfg, "head")
@@ -486,7 +513,7 @@ def test_downgrade_to_0002_removes_raw_and_content_items():
             "serp_usage",
         }
         command.upgrade(cfg, "head")  # and back up again
-        assert "content_items" in _tables(engine)
+        assert {"content_items", "content_analysis", "item_aspects"} <= _tables(engine)
         engine.dispose()
 
 
@@ -882,3 +909,224 @@ def test_content_items_enum_columns_reject_unknown_values(ctx):
         _new_content_item(conn, analysis, brand, source_type="podcast")
     with pytest.raises(DataError), conn.begin_nested():
         _new_content_item(conn, analysis, brand, window="future")
+
+
+# ---------- Phase 4.2: content_analysis / item_aspects ----------
+
+VERSION = "m|lex-1|clauses-1|relevance-1|consumer_electronics"
+
+
+def _new_analysis_row(conn, content_id, **overrides):
+    values = {
+        "content_id": content_id,
+        "content_hash": HASH_B,
+        "sentiment": "negative",
+        "sentiment_score": -0.5,
+        "negative_prob": 0.7,
+        "is_about_brand": True,
+        "model": "m",
+        "analyzer_version": VERSION,
+    } | overrides
+    cols = ", ".join(f'"{k}"' for k in values)
+    params = ", ".join(f":{k}" for k in values)
+    conn.execute(text(f"INSERT INTO content_analysis ({cols}) VALUES ({params})"), values)
+
+
+def _new_aspect_row(conn, content_id, **overrides):
+    values = {
+        "content_id": content_id,
+        "aspect": "battery",
+        "clause": "battery life is terrible",
+        "sentiment": "negative",
+        "negative_prob": 0.9,
+        "score": -0.8,
+    } | overrides
+    cols = ", ".join(f'"{k}"' for k in values)
+    params = ", ".join(f":{k}" for k in values)
+    conn.execute(text(f"INSERT INTO item_aspects ({cols}) VALUES ({params})"), values)
+
+
+@pytest.fixture
+def item(ctx):
+    conn, analysis, brand = ctx
+    return conn, _new_content_item(conn, analysis, brand), analysis
+
+
+def test_content_analysis_columns_match_database_md(migrated):
+    with migrated.connect() as c:
+        rows = _rows(
+            c,
+            """SELECT column_name, is_nullable, udt_name FROM information_schema.columns
+               WHERE table_name = 'content_analysis'""",
+        )
+    assert {name: (null, udt) for name, null, udt in rows} == {
+        "content_id": ("NO", "uuid"),
+        "content_hash": ("NO", "text"),
+        "sentiment": ("NO", "sentiment"),
+        "sentiment_score": ("NO", "float4"),
+        "negative_prob": ("NO", "float4"),
+        "is_about_brand": ("NO", "bool"),
+        "matched_terms": ("NO", "_text"),
+        "topics": ("NO", "_text"),
+        "keywords": ("NO", "_text"),
+        "model": ("NO", "text"),
+        "analyzer_version": ("NO", "text"),
+        "analyzed_at": ("NO", "timestamptz"),
+    }
+
+
+def test_item_aspects_columns_match_database_md(migrated):
+    with migrated.connect() as c:
+        rows = _rows(
+            c,
+            """SELECT column_name, is_nullable, udt_name FROM information_schema.columns
+               WHERE table_name = 'item_aspects'""",
+        )
+    assert {name: (null, udt) for name, null, udt in rows} == {
+        "content_id": ("NO", "uuid"),
+        "aspect": ("NO", "text"),
+        "clause": ("NO", "text"),
+        "sentiment": ("NO", "sentiment"),
+        "negative_prob": ("NO", "float4"),
+        "score": ("NO", "float4"),
+    }
+
+
+def test_nlp_indexes_and_primary_keys(migrated):
+    with migrated.connect() as c:
+        defs = {
+            r[0]: r[1]
+            for r in _rows(
+                c,
+                "SELECT indexname, indexdef FROM pg_indexes "
+                "WHERE tablename IN ('content_analysis', 'item_aspects')",
+            )
+        }
+    reuse = defs["ix_content_analysis_content_hash_analyzer_version"]
+    assert "(content_hash, analyzer_version)" in reuse and "UNIQUE" not in reuse
+    assert "(aspect, sentiment)" in defs["ix_item_aspects_aspect_sentiment"]
+    assert "pk_content_analysis" in defs and "(content_id)" in defs["pk_content_analysis"]
+    assert "(content_id, aspect)" in defs["pk_item_aspects"]
+
+
+def test_content_analysis_defaults(item):
+    conn, content_id, _ = item
+    _new_analysis_row(conn, content_id)
+    row = conn.execute(
+        text(
+            "SELECT matched_terms, topics, keywords, analyzed_at IS NOT NULL AS stamped "
+            "FROM content_analysis WHERE content_id = :c"
+        ),
+        {"c": content_id},
+    ).one()
+    assert (row.matched_terms, row.topics, row.keywords, row.stamped) == ([], [], [], True)
+
+
+def test_content_analysis_is_one_row_per_item(item):
+    conn, content_id, _ = item
+    _new_analysis_row(conn, content_id)
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_analysis_row(conn, content_id, analyzer_version="other")
+
+
+def test_same_hash_and_version_may_exist_for_several_items(ctx):
+    conn, analysis, brand = ctx
+    first = _new_content_item(conn, analysis, brand)
+    second = _new_content_item(conn, _new_analysis(conn, brand), brand)  # same text, other analysis
+    _new_analysis_row(conn, first)
+    _new_analysis_row(conn, second)  # the reuse index is not unique
+
+
+def test_item_aspects_one_clause_per_aspect_per_item(item):
+    conn, content_id, _ = item
+    _new_aspect_row(conn, content_id)
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_aspect_row(conn, content_id, clause="another battery clause")
+    _new_aspect_row(conn, content_id, aspect="camera")
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"sentiment_score": 1.01},
+        {"sentiment_score": -1.01},
+        {"negative_prob": 1.01},
+        {"negative_prob": -0.01},
+        {"content_hash": "A" * 64},
+        {"content_hash": "a" * 63},
+        {"model": " \t"},
+        {"analyzer_version": ""},
+    ],
+)
+def test_content_analysis_check_constraints(item, overrides):
+    conn, content_id, _ = item
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_analysis_row(conn, content_id, **overrides)
+
+
+@pytest.mark.parametrize(
+    "ok", [{"sentiment_score": 1}, {"sentiment_score": -1}, {"negative_prob": 0}]
+)
+def test_content_analysis_range_edges_are_allowed(item, ok):
+    conn, content_id, _ = item
+    _new_analysis_row(conn, content_id, **ok)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"aspect": " "},
+        {"clause": "\n"},
+        {"negative_prob": 1.5},
+        {"negative_prob": -0.5},
+        {"score": 1.5},
+        {"score": -1.5},
+    ],
+)
+def test_item_aspects_check_constraints(item, overrides):
+    conn, content_id, _ = item
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_aspect_row(conn, content_id, **overrides)
+
+
+def test_nlp_rows_need_an_existing_content_item(ctx):
+    conn, _, _ = ctx
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_analysis_row(conn, uuid.uuid4())
+    with pytest.raises(IntegrityError), conn.begin_nested():
+        _new_aspect_row(conn, uuid.uuid4())
+
+
+def test_nlp_enum_columns_reject_unknown_values(item):
+    conn, content_id, _ = item
+    with pytest.raises(DataError), conn.begin_nested():
+        _new_analysis_row(conn, content_id, sentiment="mixed")
+    with pytest.raises(DataError), conn.begin_nested():
+        _new_aspect_row(conn, content_id, sentiment="mixed")
+
+
+def test_deleting_an_analysis_removes_its_nlp_rows(item):
+    conn, content_id, analysis = item
+    _new_analysis_row(conn, content_id)
+    _new_aspect_row(conn, content_id)
+    conn.execute(text("DELETE FROM analyses WHERE id = :a"), {"a": analysis})
+    assert _rows(conn, "SELECT count(*) FROM content_items") == [(0,)]
+    assert _rows(conn, "SELECT count(*) FROM content_analysis") == [(0,)]
+    assert _rows(conn, "SELECT count(*) FROM item_aspects") == [(0,)]
+
+
+def test_downgrade_0005_keeps_the_sentiment_enum_and_content_items():
+    with blank_database() as url:
+        cfg = _cfg(url)
+        command.upgrade(cfg, "head")
+        command.downgrade(cfg, "0004")
+        engine = create_engine(url)
+        with engine.connect() as c:
+            labels = _rows(
+                c,
+                "SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid "
+                "WHERE t.typname = 'sentiment' ORDER BY enumsortorder",
+            )
+        assert labels == [("positive",), ("neutral",), ("negative",)]
+        assert "content_items" in _tables(engine)
+        engine.dispose()

@@ -39,3 +39,9 @@ Live SerpApi/Groq calls are disabled by default. Do not commit `.env` or any API
 ## Phase 4.1: NLP foundation
 
 `services/nlp/` (`relevance`, `clauses`, `aspects`, `sentiment`, `textnorm`; see its README) holds the pure building blocks of the local NLP pipeline: rule-based brand relevance, sentence + contrast-word clause splitting, lexicon aspect detection (lexicons in `app/config/taxonomy.py`), the `SentimentAnalyzer` protocol and a deterministic stub. No model, no database, no pipeline wiring, no API change. The real BERT/RoBERTa analyzer, migration `0005` and persistence are later Phase 4 steps.
+
+## Phase 4.2: local model and NLP persistence
+
+`services/nlp/hf_sentiment.py` + `model_loader.py` implement the real local sentiment analyzer behind the unchanged `SentimentAnalyzer` protocol (lazy, CPU, batched, margin rule; default `cardiffnlp/twitter-roberta-base-sentiment-latest`, configurable with `SENTIMENT_MODEL` / `HF_HOME`). `services/nlp/item_analysis.py` turns items into analysis rows. Migration `0005` adds `content_analysis` and `item_aspects` (`ContentAnalysisRow`, `ItemAspectRow`); `ContentAnalysisRepository` (`save_many`, `get`, `get_many`, `list_for_analysis`, `count_for_analysis`, `analyzed_content_ids`, `find_reusable`, `copy_reusable`) and `ItemAspectRepository` (`add_many`, `list_for_content`, `list_for_analysis`, `count`) store them. Analyses are reused by `(content_hash, analyzer_version)`; see `docs/DATABASE.md` 5.6.
+
+Torch/transformers are an optional extra: `pip install -e ".[nlp]"`. Default tests never load a model; the real-model test is `pytest -m model tests/evals/test_real_sentiment_model.py`. Not wired into `analysis_pipeline` (Phase 6); no API or OpenAPI change; keywords/topics, the eval set and `scripts/run_eval.py` are not done.

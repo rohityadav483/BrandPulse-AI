@@ -10,7 +10,7 @@ earliest clause. One clause can carry several aspects.
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache
 
 from app.config.taxonomy import DEFAULT_CATEGORY, Lexicon, get_lexicon
 from app.schemas.domain import Category
@@ -25,7 +25,7 @@ class AspectClause:
     matched_terms: tuple[str, ...]  # lexicon terms (normalised form) found in the clause
 
 
-@lru_cache(maxsize=None)
+@cache
 def _compiled(category_key: str) -> tuple[tuple[str, tuple[tuple[str, re.Pattern[str]], ...]], ...]:
     lexicon = get_lexicon(category_key)
     compiled = []
