@@ -62,6 +62,28 @@ class Sentiment(enum.StrEnum):
     negative = "negative"
 
 
+class SignalKind(enum.StrEnum):
+    aspect_negative_spike = "aspect_negative_spike"
+
+
+class ImpactLevel(enum.StrEnum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
+class SignalStatus(enum.StrEnum):
+    detected = "detected"
+    investigating = "investigating"
+    investigated = "investigated"
+
+
+class Priority(enum.StrEnum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
 def pg_enum(py_enum: type[enum.StrEnum], name: str) -> ENUM:
     """Column type for an existing Postgres enum (the migration owns CREATE TYPE)."""
     return ENUM(

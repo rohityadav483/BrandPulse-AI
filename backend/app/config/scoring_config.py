@@ -3,7 +3,12 @@
 import math
 
 EPSILON = 0.02
-SIGNAL_WEIGHTS = {"growth": 0.35, "frequency": 0.20, "cross_source": 0.25, "sentiment_impact": 0.20}
+SIGNAL_WEIGHTS = {
+    "growth": 0.35,
+    "frequency": 0.20,
+    "cross_source": 0.25,
+    "sentiment_impact": 0.20,
+}
 HEALTH_WEIGHTS = {"sentiment": 0.35, "engagement": 0.20, "risk": 0.25, "trend": 0.20}
 CONFIDENCE_WEIGHTS = {
     "independence": 0.30,
@@ -28,9 +33,15 @@ def growth_ratio(
     """Compute aspect-negative share growth with the documented epsilon smoothing."""
     if min(current_total, baseline_total) <= 0:
         raise ValueError("window totals must be positive")
-    if min(current_n, baseline_n) < 0 or current_n > current_total or baseline_n > baseline_total:
+    if (
+        min(current_n, baseline_n) < 0
+        or current_n > current_total
+        or baseline_n > baseline_total
+    ):
         raise ValueError("mention counts must be within their window totals")
-    return ((current_n / current_total) + epsilon) / ((baseline_n / baseline_total) + epsilon)
+    return ((current_n / current_total) + epsilon) / (
+        (baseline_n / baseline_total) + epsilon
+    )
 
 
 def signal_score(

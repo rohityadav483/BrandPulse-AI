@@ -37,9 +37,12 @@ class ContentItemRow(Base):
         CheckConstraint("url ~ '\\S'", name="url_not_blank"),
         CheckConstraint("domain ~ '\\S'", name="domain_not_blank"),
         CheckConstraint(f"url_hash ~ {_SHA256_HEX}", name="url_hash_sha256_hex"),
-        CheckConstraint(f"content_hash ~ {_SHA256_HEX}", name="content_hash_sha256_hex"),
         CheckConstraint(
-            f"dup_group IS NULL OR dup_group ~ {_SHA256_HEX}", name="dup_group_sha256_hex"
+            f"content_hash ~ {_SHA256_HEX}", name="content_hash_sha256_hex"
+        ),
+        CheckConstraint(
+            f"dup_group IS NULL OR dup_group ~ {_SHA256_HEX}",
+            name="dup_group_sha256_hex",
         ),
         # A date exists exactly when its confidence is not 'unknown'.
         CheckConstraint(
@@ -47,14 +50,33 @@ class ContentItemRow(Base):
             name="date_matches_confidence",
         ),
         CheckConstraint(
-            "purpose <> 'investigation' OR \"window\" IS NULL", name="investigation_no_window"
+            "purpose <> 'investigation' OR \"window\" IS NULL",
+            name="investigation_no_window",
         ),
         # Exact dedupe (DATABASE.md 5.5): one row per normalized text per analysis and brand.
-        Index("uq_content_items_identity", "analysis_id", "brand_id", "content_hash", unique=True),
-        Index("ix_content_items_analysis_brand_window", "analysis_id", "brand_id", "window"),
+        Index(
+            "uq_content_items_identity",
+            "analysis_id",
+            "brand_id",
+            "content_hash",
+            unique=True,
+        ),
+        Index(
+            "ix_content_items_analysis_brand_window",
+            "analysis_id",
+            "brand_id",
+            "window",
+        ),
         Index("ix_content_items_analysis_source_type", "analysis_id", "source_type"),
-        Index("ix_content_items_content_hash", "content_hash"),  # cross-analysis NLP reuse
-        Index("ix_content_items_analysis_brand_url_hash", "analysis_id", "brand_id", "url_hash"),
+        Index(
+            "ix_content_items_content_hash", "content_hash"
+        ),  # cross-analysis NLP reuse
+        Index(
+            "ix_content_items_analysis_brand_url_hash",
+            "analysis_id",
+            "brand_id",
+            "url_hash",
+        ),
         Index("ix_content_items_analysis_dup_group", "analysis_id", "dup_group"),
     )
 
@@ -68,7 +90,9 @@ class ContentItemRow(Base):
     purpose: Mapped[ContentPurpose] = mapped_column(
         pg_enum(ContentPurpose, "content_purpose"), nullable=False
     )
-    window: Mapped[WindowKind | None] = mapped_column(pg_enum(WindowKind, "window_kind"))
+    window: Mapped[WindowKind | None] = mapped_column(
+        pg_enum(WindowKind, "window_kind")
+    )
     source_type: Mapped[SourceType] = mapped_column(
         pg_enum(SourceType, "source_type"), nullable=False
     )

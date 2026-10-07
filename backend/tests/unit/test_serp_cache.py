@@ -53,7 +53,9 @@ def test_key_changes_with_engine_dates_or_params():
     assert cache_key("google", base) != cache_key("google", shifted)
     as_int, as_str = {"q": "x", "num": 10}, {"q": "x", "num": "10"}
     assert cache_key("google", as_int) == cache_key("google", as_str)
-    assert normalize_params({"no_cache": True, "async": False, "x": True}) == {"x": "true"}
+    assert normalize_params({"no_cache": True, "async": False, "x": True}) == {
+        "x": "true"
+    }
 
 
 @pytest.mark.parametrize(
@@ -127,5 +129,7 @@ def test_pinned_entries_never_expire_or_purge_and_survive_refresh():
 
 
 def test_sanitize_response_is_deep():
-    clean = sanitize_response({"a": [{"api_key": "k", "u": "x?api_key=abc&y=1"}], "n": 3})
+    clean = sanitize_response(
+        {"a": [{"api_key": "k", "u": "x?api_key=abc&y=1"}], "n": 3}
+    )
     assert clean == {"a": [{"u": "x?api_key=REDACTED&y=1"}], "n": 3}

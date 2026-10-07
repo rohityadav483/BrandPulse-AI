@@ -174,7 +174,14 @@ _CONSUMER_ELECTRONICS: dict[str, tuple[str, ...]] = {
 }
 
 _GENERIC: dict[str, tuple[str, ...]] = {
-    "quality": ("quality", "durable", "durability", "flimsy", "well made", "poorly made"),
+    "quality": (
+        "quality",
+        "durable",
+        "durability",
+        "flimsy",
+        "well made",
+        "poorly made",
+    ),
     "price": (
         "price",
         "pricing",
@@ -196,8 +203,21 @@ _GENERIC: dict[str, tuple[str, ...]] = {
         "replacement",
         "return policy",
     ),
-    "reliability": ("reliable", "reliability", "unreliable", "broke", "broken", "defective"),
-    "usability": ("usability", "easy to use", "hard to use", "intuitive", "user friendly"),
+    "reliability": (
+        "reliable",
+        "reliability",
+        "unreliable",
+        "broke",
+        "broken",
+        "defective",
+    ),
+    "usability": (
+        "usability",
+        "easy to use",
+        "hard to use",
+        "intuitive",
+        "user friendly",
+    ),
     "delivery": ("delivery", "shipping", "arrived late", "packaging"),
 }
 

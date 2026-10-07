@@ -41,7 +41,9 @@ def replay(engine, params):
 
 
 class Rig:
-    def __init__(self, script=replay, *, live=True, used=0, limit=250, reserve=20, key="K"):
+    def __init__(
+        self, script=replay, *, live=True, used=0, limit=250, reserve=20, key="K"
+    ):
         self.cache_store = InMemoryCacheStore()
         self.usage_store = InMemoryUsageStore()
         self.transport = ScriptedTransport(script)
@@ -83,7 +85,9 @@ class Rig:
         return build_plan(**(args | kw))
 
     def collect(self, plan, cap=12):
-        return self.fetcher.collect(plan, budget=RunBudget(cap), purpose=UsagePurpose.analysis)
+        return self.fetcher.collect(
+            plan, budget=RunBudget(cap), purpose=UsagePurpose.analysis
+        )
 
 
 def test_live_run_fetches_caches_and_logs_one_credit_per_call():
@@ -93,7 +97,9 @@ def test_live_run_fetches_caches_and_logs_one_credit_per_call():
     assert len(rig.transport.calls) == 11 and len(rig.cache_store.rows) == 11
     assert [r.credits for r in rig.usage_store.records] == [1] * 11
     assert rig.quota.snapshot().used == 11
-    assert all("K" != v for row in rig.cache_store.rows.values() for v in row.params.values())
+    assert all(
+        "K" != v for row in rig.cache_store.rows.values() for v in row.params.values()
+    )
 
 
 def test_cache_hit_avoids_a_call_and_costs_nothing():
@@ -116,14 +122,20 @@ def test_cached_replay_works_with_live_switch_off():
     offline = Rig(live=False)
     offline.cache_store.rows = dict(rig.cache_store.rows)
     result = offline.collect(plan)
-    assert result.cache_hits == 11 and result.warnings == [] and offline.transport.calls == []
+    assert (
+        result.cache_hits == 11
+        and result.warnings == []
+        and offline.transport.calls == []
+    )
 
 
 def test_live_switch_off_blocks_all_network_calls():
     rig = Rig(live=False)
     result = rig.collect(rig.plan())
     assert rig.transport.calls == [] and result.fetched == []
-    assert [w.code for w in result.warnings] == ["live_data_disabled"]  # once, not 11 times
+    assert [w.code for w in result.warnings] == [
+        "live_data_disabled"
+    ]  # once, not 11 times
     assert len(result.skipped) == 11 and rig.usage_store.records == []
     with pytest.raises(LiveDataDisabled):
         rig.fetcher.fetch(
@@ -148,7 +160,9 @@ def test_budget_exhaustion_still_serves_remaining_cache_hits():
     rig = Rig()
     plan = rig.plan()
     for call in plan.calls[-2:]:
-        rig.cache.store(call.spec, json.loads((FIXTURES / BY_ENGINE[call.spec.engine]).read_text()))
+        rig.cache.store(
+            call.spec, json.loads((FIXTURES / BY_ENGINE[call.spec.engine]).read_text())
+        )
     result = rig.collect(plan, cap=2)
     assert result.live_calls == 2 and result.cache_hits == 2
 
@@ -167,7 +181,11 @@ def test_reserve_guard_refuses_live_calls_below_the_reserve():
 
 def test_engine_failure_warns_and_continues_and_logs_zero_credits():
     def script(engine, params):
-        return TransportResponse(500, None) if engine == "youtube" else replay(engine, params)
+        return (
+            TransportResponse(500, None)
+            if engine == "youtube"
+            else replay(engine, params)
+        )
 
     rig = Rig(script)
     result = rig.collect(rig.plan())

@@ -62,7 +62,9 @@ def test_overlong_words_are_dropped():
 
 def test_result_depends_on_the_text_only():
     text = "camera zoom camera lens"
-    assert extract_keywords(text) == extract_keywords(text) == ("camera", "zoom", "lens")
+    assert (
+        extract_keywords(text) == extract_keywords(text) == ("camera", "zoom", "lens")
+    )
 
 
 def test_bad_arguments():
@@ -102,7 +104,9 @@ def test_keywords_covered_by_an_aspect_are_not_repeated():
 
 
 def test_covered_multiword_terms_cover_their_words():
-    assert derive_topics(["battery"], ["life", "july"], covered_terms=["battery life"]) == (
+    assert derive_topics(
+        ["battery"], ["life", "july"], covered_terms=["battery life"]
+    ) == (
         "battery",
         "july",
     )

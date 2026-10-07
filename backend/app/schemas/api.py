@@ -11,7 +11,13 @@ from datetime import date, datetime
 from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from app.schemas.domain import (
     MAX_COMPETITORS,
@@ -43,10 +49,13 @@ from app.schemas.domain import (
 # Reusable constrained types
 Percent = Annotated[int, Field(ge=0, le=100)]  # 0-100
 SignedPercent = Annotated[int, Field(ge=-100, le=100)]  # net_score
-Fraction = Annotated[float, Field(ge=0, le=1)]  # 0-1 (`*_share`, relevance, factors, scores)
+Fraction = Annotated[
+    float, Field(ge=0, le=1)
+]  # 0-1 (`*_share`, relevance, factors, scores)
 Count = Annotated[int, Field(ge=0)]
 BrandName = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_NAME_LENGTH)
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_NAME_LENGTH),
 ]
 
 
@@ -105,9 +114,14 @@ class CreateAnalysisRequest(BaseModel):
 
     brand: BrandName
     product: (
-        Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_NAME_LENGTH)] | None
+        Annotated[
+            str, StringConstraints(strip_whitespace=True, max_length=MAX_NAME_LENGTH)
+        ]
+        | None
     ) = None
-    competitors: list[BrandName] = Field(default_factory=list, max_length=MAX_COMPETITORS)
+    competitors: list[BrandName] = Field(
+        default_factory=list, max_length=MAX_COMPETITORS
+    )
     category: Category = Category.consumer_electronics
     period_days: Literal[7, 14, 30] = 30
     as_of_date: date | None = None
@@ -392,7 +406,9 @@ class Finding(BaseModel):
 
 class Scope(BaseModel):
     verdict: ScopeVerdict
-    ratio: float | None = None  # brand share / median competitor share; null when `unknown`
+    ratio: float | None = (
+        None  # brand share / median competitor share; null when `unknown`
+    )
     explanation: str
 
 
@@ -418,7 +434,9 @@ class InvestigationConfidence(BaseModel):
 
 
 class SourceCoverage(BaseModel):
-    source_type: CoverageSourceType  # includes `trends` only with search-interest corroboration
+    source_type: (
+        CoverageSourceType  # includes `trends` only with search-interest corroboration
+    )
     supporting: Count
 
 

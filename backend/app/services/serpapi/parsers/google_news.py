@@ -18,7 +18,9 @@ def _source_name(source: Any) -> tuple[str | None, str | None]:
     """`source` is an object ({"name", "authors"}) on Google News, a plain string elsewhere."""
     if isinstance(source, dict):
         authors = source.get("authors")
-        joined = ", ".join(a for a in authors if isinstance(a, str)) if authors else None
+        joined = (
+            ", ".join(a for a in authors if isinstance(a, str)) if authors else None
+        )
         return text(source.get("name")), text(joined)
     return text(source), None
 

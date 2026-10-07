@@ -12,16 +12,22 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
+from alembic import command
 from app.db.repositories.raw_item import RawItemRepository
 from app.db.session import normalize_url
 from app.schemas.domain import ContentPurpose, SourceType, WindowKind
-from app.schemas.serp import QuerySpec, RawItem, RawItemContext, SerpEngine, StoredRawItem
+from app.schemas.serp import (
+    QuerySpec,
+    RawItem,
+    RawItemContext,
+    SerpEngine,
+    StoredRawItem,
+)
 from app.services.serpapi.cache import cache_key
 from app.services.serpapi.parsers import parse_response
 
@@ -76,7 +82,9 @@ def repo(engine):
 def _brand(engine, name="Samsung") -> uuid.UUID:
     with engine.begin() as conn:
         return conn.execute(
-            text("INSERT INTO brands (name, normalized_name) VALUES (:n, :nn) RETURNING id"),
+            text(
+                "INSERT INTO brands (name, normalized_name) VALUES (:n, :nn) RETURNING id"
+            ),
             {"n": name, "nn": name.lower()},
         ).scalar_one()
 
@@ -116,8 +124,12 @@ def ctx(analysis, brand, window=WindowKind.current, **kw) -> RawItemContext:
 def fixture_items(engine_name: SerpEngine) -> list[RawItem]:
     param = "search_query" if engine_name is SerpEngine.youtube else "q"
     spec = QuerySpec(engine=engine_name, params={param: "Samsung Galaxy S25 Ultra"})
-    response = json.loads((FIXTURES / CONTENT_FIXTURES[engine_name]).read_text(encoding="utf-8"))
-    parsed = parse_response(spec, response, cache_key=cache_key(spec.engine, spec.params))
+    response = json.loads(
+        (FIXTURES / CONTENT_FIXTURES[engine_name]).read_text(encoding="utf-8")
+    )
+    parsed = parse_response(
+        spec, response, cache_key=cache_key(spec.engine, spec.params)
+    )
     return parsed.items
 
 
@@ -131,7 +143,11 @@ def all_fixture_items() -> list[RawItem]:
 def test_every_engine_fixture_round_trips_losslessly(repo, analysis, brand):
     items = all_fixture_items()
     result = repo.add_many(ctx(analysis, brand, collected_at=NOW), items)
-    assert (result.inserted, result.duplicates, result.total) == (len(items), 0, len(items))
+    assert (result.inserted, result.duplicates, result.total) == (
+        len(items),
+        0,
+        len(items),
+    )
     assert len(result.inserted_ids) == len(items)
 
     stored = repo.list_for_analysis(analysis)
@@ -151,7 +167,12 @@ def test_every_engine_fixture_round_trips_losslessly(repo, analysis, brand):
 def test_all_four_source_types_are_stored(repo, analysis, brand):
     repo.add_many(ctx(analysis, brand), all_fixture_items())
     types = {s.source_type for s in repo.list_for_analysis(analysis)}
-    assert types == {SourceType.web, SourceType.news, SourceType.forum, SourceType.youtube}
+    assert types == {
+        SourceType.web,
+        SourceType.news,
+        SourceType.forum,
+        SourceType.youtube,
+    }
     for source in types:
         assert repo.count(analysis, source_type=source) > 0
 
@@ -199,7 +220,9 @@ def test_empty_batch_is_a_no_op(repo, analysis, brand):
 
 def test_empty_serp_response_persists_nothing(repo, analysis, brand):
     spec = QuerySpec(engine=SerpEngine.google, params={"q": "nothing"})
-    response = json.loads((FIXTURES / "google_no_results.json").read_text(encoding="utf-8"))
+    response = json.loads(
+        (FIXTURES / "google_no_results.json").read_text(encoding="utf-8")
+    )
     parsed = parse_response(spec, response)
     assert parsed.items == []
     assert repo.add_many(ctx(analysis, brand), parsed.items).inserted == 0
@@ -208,7 +231,9 @@ def test_empty_serp_response_persists_nothing(repo, analysis, brand):
 def test_trends_response_yields_no_raw_items(repo, analysis, brand):
     spec = QuerySpec(engine=SerpEngine.google_trends, params={"q": "Samsung,Apple"})
     response = json.loads(
-        (FIXTURES / "google_trends_samsung_apple_oneplus.json").read_text(encoding="utf-8")
+        (FIXTURES / "google_trends_samsung_apple_oneplus.json").read_text(
+            encoding="utf-8"
+        )
     )
     parsed = parse_response(spec, response)
     assert parsed.items == [] and parsed.trends is not None
@@ -252,13 +277,17 @@ def test_add_reports_repeat_and_returns_the_original_row(repo, analysis, brand):
 def test_same_article_found_by_two_queries_stays_two_raw_rows(repo, analysis, brand):
     """Merging near-duplicates is Phase 3.2: raw storage keeps every occurrence."""
     item = fixture_items(SerpEngine.google)[0]
-    other_query = item.model_copy(update={"query": "s25 ultra battery", "serp_cache_key": "k2"})
+    other_query = item.model_copy(
+        update={"query": "s25 ultra battery", "serp_cache_key": "k2"}
+    )
     result = repo.add_many(ctx(analysis, brand), [item, other_query])
     assert result.inserted == 2
     assert len({s.url for s in repo.list_for_analysis(analysis)}) == 1
 
 
-def test_same_item_may_exist_in_other_analysis_brand_or_purpose(engine, repo, analysis, brand):
+def test_same_item_may_exist_in_other_analysis_brand_or_purpose(
+    engine, repo, analysis, brand
+):
     item = fixture_items(SerpEngine.google)[0]
     repo.add(ctx(analysis, brand), item)
     other_analysis = _analysis(engine, brand)
@@ -291,7 +320,9 @@ def test_list_and_count_filters(engine, repo, analysis, brand):
     repo.add_many(ctx(analysis, brand, WindowKind.baseline), news)
     repo.add_many(ctx(analysis, apple, WindowKind.current), web)
     repo.add_many(
-        RawItemContext(analysis_id=analysis, brand_id=brand, purpose=ContentPurpose.investigation),
+        RawItemContext(
+            analysis_id=analysis, brand_id=brand, purpose=ContentPurpose.investigation
+        ),
         web[:1],
     )
 
@@ -356,8 +387,15 @@ def test_exists_is_scoped_to_analysis_brand_and_purpose(engine, repo, analysis, 
 
 def test_a_batch_is_all_or_nothing(repo, analysis, brand):
     good = fixture_items(SerpEngine.google)[0]
-    bad = RawItem.model_construct(  # bypasses validation to reach the DB check constraint
-        **{**good.model_dump(), "title": "bad", "position": 0, "url": "https://bad.example.test"}
+    bad = (
+        RawItem.model_construct(  # bypasses validation to reach the DB check constraint
+            **{
+                **good.model_dump(),
+                "title": "bad",
+                "position": 0,
+                "url": "https://bad.example.test",
+            }
+        )
     )
     with pytest.raises(IntegrityError):
         repo.add_many(ctx(analysis, brand), [good, bad])

@@ -35,7 +35,10 @@ def _settings():
 
 def test_clearly_positive_and_negative_texts(analyzer):
     positive, negative = analyzer.analyze(
-        ["I love this phone, the screen is gorgeous", "This is awful, it keeps crashing"]
+        [
+            "I love this phone, the screen is gorgeous",
+            "This is awful, it keeps crashing",
+        ]
     )
     assert positive.label is Sentiment.positive and positive.score > 0.5
     assert negative.label is Sentiment.negative and negative.score < -0.5
@@ -45,7 +48,8 @@ def test_camera_amazing_but_battery_terrible_with_the_real_model(analyzer):
     (analysis,) = analyze_items(
         [
             ItemText(
-                "Samsung Galaxy S25 Ultra", "The camera is amazing but battery life is terrible"
+                "Samsung Galaxy S25 Ultra",
+                "The camera is amazing but battery life is terrible",
             )
         ],
         BrandProfile("Samsung"),
@@ -61,4 +65,7 @@ def test_probabilities_are_valid_and_deterministic(analyzer):
     first = analyzer.analyze(texts)
     assert first == analyzer.analyze(texts)
     for result in first:
-        assert abs(result.positive_prob + result.neutral_prob + result.negative_prob - 1) < 1e-6
+        assert (
+            abs(result.positive_prob + result.neutral_prob + result.negative_prob - 1)
+            < 1e-6
+        )

@@ -59,9 +59,13 @@ def test_no_module_level_import_of_a_model_library_or_the_database(module):
         elif isinstance(node, ast.ImportFrom) and node.module:
             top_level.add(node.module)
     for name in top_level:
-        assert not name.startswith(("torch", "transformers", "sqlalchemy", "numpy")), name
+        assert not name.startswith(("torch", "transformers", "sqlalchemy", "numpy")), (
+            name
+        )
         if name.startswith("app."):
-            assert name.startswith(("app.config.taxonomy", "app.schemas", "app.services.nlp")), name
+            assert name.startswith(
+                ("app.config.taxonomy", "app.schemas", "app.services.nlp")
+            ), name
 
 
 # ---- singleton cache ----
@@ -83,8 +87,12 @@ def test_get_classifier_builds_once_per_config():
 
 def test_different_configs_get_different_classifiers():
     a = get_classifier(ClassifierConfig("org/a"), factory=lambda c: object())
-    b = get_classifier(ClassifierConfig("org/a", max_length=64), factory=lambda c: object())
-    c = get_classifier(ClassifierConfig("org/a", cache_dir="/x"), factory=lambda c: object())
+    b = get_classifier(
+        ClassifierConfig("org/a", max_length=64), factory=lambda c: object()
+    )
+    c = get_classifier(
+        ClassifierConfig("org/a", cache_dir="/x"), factory=lambda c: object()
+    )
     assert len({id(a), id(b), id(c)}) == 3
 
 
@@ -113,7 +121,9 @@ def test_factory_failure_is_not_cached():
 
 
 def test_missing_torch_gives_a_clear_error(monkeypatch):
-    monkeypatch.setitem(sys.modules, "torch", None)  # makes `import torch` raise ImportError
+    monkeypatch.setitem(
+        sys.modules, "torch", None
+    )  # makes `import torch` raise ImportError
     with pytest.raises(ModelUnavailableError, match=r"\.\[nlp\]"):
         load_sequence_classifier(ClassifierConfig("org/m"))
 
@@ -122,7 +132,9 @@ def test_broken_torch_install_gives_a_clear_error(monkeypatch, tmp_path):
     # A half-installed torch (native library missing) raises OSError on import, not ImportError.
     package = tmp_path / "torch"
     package.mkdir()
-    (package / "__init__.py").write_text("raise OSError('libtorch_global_deps.so: not found')\n")
+    (package / "__init__.py").write_text(
+        "raise OSError('libtorch_global_deps.so: not found')\n"
+    )
     monkeypatch.delitem(sys.modules, "torch", raising=False)
     monkeypatch.syspath_prepend(str(tmp_path))
     with pytest.raises(ModelUnavailableError, match=r"OSError.*\.\[nlp\]"):
@@ -173,7 +185,13 @@ class _FakeTorch(types.ModuleType):
 
 def _install_fakes(monkeypatch, *, id2label=None, fail_with=None):
     torch = _FakeTorch()
-    seen = {"tokenizer_calls": [], "model_calls": [], "from_pretrained": [], "moved": [], "eval": 0}
+    seen = {
+        "tokenizer_calls": [],
+        "model_calls": [],
+        "from_pretrained": [],
+        "moved": [],
+        "eval": 0,
+    }
 
     class Tokenizer:
         @classmethod
@@ -207,7 +225,9 @@ def _install_fakes(monkeypatch, *, id2label=None, fail_with=None):
 
         def __call__(self, texts):
             seen["model_calls"].append((list(texts), torch.inference_active))
-            return types.SimpleNamespace(logits=_Tensor([[1.0, 1.0, 2.0] for _ in texts]))
+            return types.SimpleNamespace(
+                logits=_Tensor([[1.0, 1.0, 2.0] for _ in texts])
+            )
 
     transformers = types.ModuleType("transformers")
     transformers.AutoTokenizer = Tokenizer
@@ -219,15 +239,22 @@ def _install_fakes(monkeypatch, *, id2label=None, fail_with=None):
 
 def test_load_builds_a_cpu_eval_classifier_with_the_configured_options(monkeypatch):
     _, seen = _install_fakes(monkeypatch)
-    config = ClassifierConfig("org/m", cache_dir="/hf", local_files_only=True, max_length=64)
+    config = ClassifierConfig(
+        "org/m", cache_dir="/hf", local_files_only=True, max_length=64
+    )
     classifier = load_sequence_classifier(config)
     options = {"cache_dir": "/hf", "local_files_only": True}
-    assert seen["from_pretrained"] == [("tokenizer", "org/m", options), ("model", "org/m", options)]
+    assert seen["from_pretrained"] == [
+        ("tokenizer", "org/m", options),
+        ("model", "org/m", options),
+    ]
     assert seen["moved"] == ["cpu"] and seen["eval"] == 1
     assert classifier.labels == ("negative", "neutral", "positive")
 
 
-def test_predict_proba_tokenizes_with_truncation_and_runs_in_inference_mode(monkeypatch):
+def test_predict_proba_tokenizes_with_truncation_and_runs_in_inference_mode(
+    monkeypatch,
+):
     torch, seen = _install_fakes(monkeypatch)
     classifier = load_sequence_classifier(ClassifierConfig("org/m", max_length=64))
     rows = classifier.predict_proba(["a", "b"])
@@ -261,7 +288,9 @@ def test_hub_or_disk_errors_become_model_unavailable(monkeypatch):
 
 def test_full_stack_through_the_analyzer_with_fake_libraries(monkeypatch):
     _install_fakes(monkeypatch)
-    analyzer = hf_sentiment.HFSentimentAnalyzer("org/m", cache_dir="/hf", neutral_margin=0.0)
+    analyzer = hf_sentiment.HFSentimentAnalyzer(
+        "org/m", cache_dir="/hf", neutral_margin=0.0
+    )
     assert not analyzer.is_loaded
     (result,) = analyzer.analyze(["anything"])
     assert analyzer.is_loaded

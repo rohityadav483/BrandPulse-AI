@@ -12,7 +12,6 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
@@ -20,6 +19,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DataError, IntegrityError
 
+from alembic import command
 from app.db.models import Base
 from app.db.session import normalize_url
 
@@ -115,7 +115,9 @@ def _rows(conn, sql, **params):
 
 def _new_brand(conn, name="Samsung") -> uuid.UUID:
     return conn.execute(
-        text("INSERT INTO brands (name, normalized_name) VALUES (:n, :nn) RETURNING id"),
+        text(
+            "INSERT INTO brands (name, normalized_name) VALUES (:n, :nn) RETURNING id"
+        ),
         {"n": name, "nn": name.lower()},
     ).scalar_one()
 
@@ -141,13 +143,16 @@ def _new_analysis(conn, brand_id, **overrides) -> uuid.UUID:
 
 def test_upgrade_head_on_blank_database(migrated):
     with migrated.connect() as c:
-        assert _rows(c, "SELECT version_num FROM alembic_version") == [("0005",)]
+        assert _rows(c, "SELECT version_num FROM alembic_version") == [("0006",)]
 
 
 def test_only_phase_0_to_4_2_tables_exist(migrated):
     with migrated.connect() as c:
         tables = {
-            r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")
+            r[0]
+            for r in _rows(
+                c, "SELECT tablename FROM pg_tables WHERE schemaname='public'"
+            )
         }
     assert tables == {
         "alembic_version",
@@ -160,6 +165,9 @@ def test_only_phase_0_to_4_2_tables_exist(migrated):
         "content_items",
         "content_analysis",
         "item_aspects",
+        "trend_points",
+        "brand_snapshots",
+        "signals",
     }
 
 
@@ -188,15 +196,24 @@ def test_indexes_match_database_md(migrated):
         defs = {
             r[0]: r[1]
             for r in _rows(
-                c, "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='public'"
+                c,
+                "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='public'",
             )
         }
     assert "(created_at DESC)" in defs["ix_analyses_created_at"]
-    assert "(client_ip_hash, created_at)" in defs["ix_analyses_client_ip_hash_created_at"]
+    assert (
+        "(client_ip_hash, created_at)" in defs["ix_analyses_client_ip_hash_created_at"]
+    )
     assert "(status)" in defs["ix_analyses_status"]
     one_target = defs["uq_analysis_brands_one_target"]
-    assert "UNIQUE" in one_target and "(analysis_id)" in one_target and "'target'" in one_target
-    assert "pk_analysis_brands" in defs and "pk_brands" in defs and "pk_analyses" in defs
+    assert (
+        "UNIQUE" in one_target
+        and "(analysis_id)" in one_target
+        and "'target'" in one_target
+    )
+    assert (
+        "pk_analysis_brands" in defs and "pk_brands" in defs and "pk_analyses" in defs
+    )
 
 
 # ---------- brands ----------
@@ -212,7 +229,9 @@ def test_brand_defaults_and_unique_normalized_name(conn):
     assert isinstance(row.id, uuid.UUID) and row.created_at is not None
     with pytest.raises(IntegrityError), conn.begin_nested():
         conn.execute(
-            text("INSERT INTO brands (name, normalized_name) VALUES ('SAMSUNG ', 'samsung')")
+            text(
+                "INSERT INTO brands (name, normalized_name) VALUES ('SAMSUNG ', 'samsung')"
+            )
         )
 
 
@@ -228,7 +247,11 @@ def test_brand_requires_name_and_normalized_name(conn):
 
 def test_analysis_defaults(conn):
     aid = _new_analysis(conn, _new_brand(conn))
-    row = conn.execute(text("SELECT * FROM analyses WHERE id = :i"), {"i": aid}).mappings().one()
+    row = (
+        conn.execute(text("SELECT * FROM analyses WHERE id = :i"), {"i": aid})
+        .mappings()
+        .one()
+    )
     assert row["status"] == "queued"
     assert row["stage"] is None
     assert row["progress"] == 0
@@ -239,7 +262,11 @@ def test_analysis_defaults(conn):
     assert row["serp_calls_budget"] == 12
     assert row["live_run"] is False
     assert row["created_at"] is not None
-    assert row["product"] is None and row["error"] is None and row["client_ip_hash"] is None
+    assert (
+        row["product"] is None
+        and row["error"] is None
+        and row["client_ip_hash"] is None
+    )
     assert row["started_at"] is None and row["finished_at"] is None
 
 
@@ -247,7 +274,9 @@ def test_analysis_requires_window_dates_and_brand(conn):
     brand = _new_brand(conn)
     with pytest.raises(IntegrityError), conn.begin_nested():
         conn.execute(
-            text("INSERT INTO analyses (brand_id, as_of_date) VALUES (:b, '2026-08-10')"),
+            text(
+                "INSERT INTO analyses (brand_id, as_of_date) VALUES (:b, '2026-08-10')"
+            ),
             {"b": brand},
         )
     with pytest.raises(IntegrityError), conn.begin_nested():
@@ -290,7 +319,9 @@ def test_status_and_stage_reject_unknown_values(conn):
     with pytest.raises(DataError), conn.begin_nested():
         _new_analysis(conn, brand, stage="bogus")
     aid = _new_analysis(conn, brand, status="partial", stage="snapshotting")
-    row = conn.execute(text("SELECT status, stage FROM analyses WHERE id=:i"), {"i": aid}).one()
+    row = conn.execute(
+        text("SELECT status, stage FROM analyses WHERE id=:i"), {"i": aid}
+    ).one()
     assert (row.status, row.stage) == ("partial", "snapshotting")
 
 
@@ -299,7 +330,9 @@ def test_status_and_stage_reject_unknown_values(conn):
 
 def _link(conn, analysis_id, brand_id, role):
     conn.execute(
-        text("INSERT INTO analysis_brands (analysis_id, brand_id, role) VALUES (:a, :b, :r)"),
+        text(
+            "INSERT INTO analysis_brands (analysis_id, brand_id, role) VALUES (:a, :b, :r)"
+        ),
         {"a": analysis_id, "b": brand_id, "r": role},
     )
 
@@ -342,7 +375,9 @@ def test_deleting_analysis_cascades_to_analysis_brands(conn):
     _link(conn, aid, brand, "target")
     _link(conn, aid, _new_brand(conn, "Apple"), "competitor")
     conn.execute(text("DELETE FROM analyses WHERE id = :i"), {"i": aid})
-    assert _rows(conn, "SELECT 1 FROM analysis_brands WHERE analysis_id = :i", i=aid) == []
+    assert (
+        _rows(conn, "SELECT 1 FROM analysis_brands WHERE analysis_id = :i", i=aid) == []
+    )
     # brands are never cascade-deleted
     assert _rows(conn, "SELECT count(*) FROM brands WHERE id = :b", b=brand) == [(1,)]
 
@@ -366,14 +401,17 @@ def test_downgrade_to_base_then_upgrade_again():
         engine = create_engine(url)
         with engine.connect() as c:
             tables = {
-                r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")
+                r[0]
+                for r in _rows(
+                    c, "SELECT tablename FROM pg_tables WHERE schemaname='public'"
+                )
             }
             enums = _rows(c, "SELECT typname FROM pg_type WHERE typtype = 'e'")
         assert tables == {"alembic_version"}
         assert enums == []
         command.upgrade(cfg, "head")
         with engine.connect() as c:
-            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0005",)]
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0006",)]
         engine.dispose()
 
 
@@ -403,7 +441,9 @@ def test_serp_cache_defaults(conn):
             "VALUES ('k1', 'google', '{}', '{}', now())"
         )
     )
-    row = _rows(conn, "SELECT pinned, fetched_at IS NOT NULL, http_status FROM serp_cache")
+    row = _rows(
+        conn, "SELECT pinned, fetched_at IS NOT NULL, http_status FROM serp_cache"
+    )
     assert row == [(False, True, None)]
 
 
@@ -411,9 +451,9 @@ def test_serp_usage_defaults_and_bigserial_id(conn):
     first = _insert_usage(conn)
     second = _insert_usage(conn)
     assert second == first + 1
-    assert _rows(conn, "SELECT created_at IS NOT NULL, analysis_id FROM serp_usage LIMIT 1") == [
-        (True, None)
-    ]
+    assert _rows(
+        conn, "SELECT created_at IS NOT NULL, analysis_id FROM serp_usage LIMIT 1"
+    ) == [(True, None)]
 
 
 @pytest.mark.parametrize("credits", [-1, 2])
@@ -434,7 +474,9 @@ def test_deleting_an_analysis_keeps_usage_rows(conn):
     aid = _new_analysis(conn, brand)
     _insert_usage(conn, analysis_id=aid)
     conn.execute(text("DELETE FROM analyses WHERE id = :a"), {"a": aid})
-    assert _rows(conn, "SELECT count(*), count(analysis_id) FROM serp_usage") == [(1, 0)]
+    assert _rows(conn, "SELECT count(*), count(analysis_id) FROM serp_usage") == [
+        (1, 0)
+    ]
 
 
 def test_serp_indexes_exist(migrated):
@@ -446,7 +488,12 @@ def test_serp_indexes_exist(migrated):
 
 def _tables(engine):
     with engine.connect() as c:
-        return {r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")}
+        return {
+            r[0]
+            for r in _rows(
+                c, "SELECT tablename FROM pg_tables WHERE schemaname='public'"
+            )
+        }
 
 
 def test_downgrade_to_0004_removes_only_the_nlp_tables():
@@ -468,7 +515,9 @@ def test_downgrade_to_0004_removes_only_the_nlp_tables():
             "raw_items",
             "content_items",
         }
-        assert enums == [(17,)]  # the NLP tables never owned an enum (sentiment is from 0001)
+        assert enums == [
+            (17,)
+        ]  # the NLP tables never owned an enum (sentiment is from 0001)
         command.upgrade(cfg, "head")
         assert {"content_analysis", "item_aspects"} <= _tables(engine)
         engine.dispose()
@@ -525,7 +574,10 @@ def test_downgrade_to_0001_returns_to_phase_0_schema():
         engine = create_engine(url)
         with engine.connect() as c:
             tables = {
-                r[0] for r in _rows(c, "SELECT tablename FROM pg_tables WHERE schemaname='public'")
+                r[0]
+                for r in _rows(
+                    c, "SELECT tablename FROM pg_tables WHERE schemaname='public'"
+                )
             }
             assert _rows(c, "SELECT version_num FROM alembic_version") == [("0001",)]
         assert tables == {"alembic_version", "brands", "analyses", "analysis_brands"}
@@ -596,7 +648,9 @@ def test_raw_items_defaults(ctx):
     conn, analysis, brand = ctx
     item_id = _new_raw_item(conn, analysis, brand)
     row = conn.execute(
-        text("SELECT metadata, collected_at IS NOT NULL AS stamped FROM raw_items WHERE id = :i"),
+        text(
+            "SELECT metadata, collected_at IS NOT NULL AS stamped FROM raw_items WHERE id = :i"
+        ),
         {"i": item_id},
     ).one()
     assert isinstance(item_id, uuid.UUID)
@@ -614,7 +668,10 @@ def test_raw_items_indexes_exist(migrated):
         }
     assert "UNIQUE" in defs["uq_raw_items_identity"]
     assert "(analysis_id, brand_id, purpose, raw_key)" in defs["uq_raw_items_identity"]
-    assert '(analysis_id, brand_id, "window")' in defs["ix_raw_items_analysis_brand_window"]
+    assert (
+        '(analysis_id, brand_id, "window")'
+        in defs["ix_raw_items_analysis_brand_window"]
+    )
     assert "(analysis_id, source_type)" in defs["ix_raw_items_analysis_source_type"]
     assert "(serp_cache_key)" in defs["ix_raw_items_serp_cache_key"]
     assert "pk_raw_items" in defs
@@ -661,7 +718,9 @@ def test_raw_items_reject_non_content_engines(ctx, engine):
         _new_raw_item(conn, analysis, brand, engine=engine)
 
 
-@pytest.mark.parametrize("engine", ["google", "google_news", "google_forums", "youtube"])
+@pytest.mark.parametrize(
+    "engine", ["google", "google_news", "google_forums", "youtube"]
+)
 def test_raw_items_accept_content_engines(ctx, engine):
     conn, analysis, brand = ctx
     _new_raw_item(conn, analysis, brand, engine=engine)
@@ -742,7 +801,8 @@ def _new_content_item(conn, analysis_id, brand_id, **overrides) -> uuid.UUID:
     cols = ", ".join(f'"{k}"' for k in values)
     params = ", ".join(f":{k}" for k in values)
     return conn.execute(
-        text(f"INSERT INTO content_items ({cols}) VALUES ({params}) RETURNING id"), values
+        text(f"INSERT INTO content_items ({cols}) VALUES ({params}) RETURNING id"),
+        values,
     ).scalar_one()
 
 
@@ -782,7 +842,9 @@ def test_content_items_defaults(ctx):
     conn, analysis, brand = ctx
     item_id = _new_content_item(conn, analysis, brand)
     row = conn.execute(
-        text("SELECT metadata, collected_at IS NOT NULL AS stamped FROM content_items WHERE id=:i"),
+        text(
+            "SELECT metadata, collected_at IS NOT NULL AS stamped FROM content_items WHERE id=:i"
+        ),
         {"i": item_id},
     ).one()
     assert isinstance(item_id, uuid.UUID) and row.metadata == {} and row.stamped
@@ -793,15 +855,22 @@ def test_content_items_indexes_exist(migrated):
         defs = {
             r[0]: r[1]
             for r in _rows(
-                c, "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'content_items'"
+                c,
+                "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'content_items'",
             )
         }
     unique = defs["uq_content_items_identity"]
     assert "UNIQUE" in unique and "(analysis_id, brand_id, content_hash)" in unique
-    assert '(analysis_id, brand_id, "window")' in defs["ix_content_items_analysis_brand_window"]
+    assert (
+        '(analysis_id, brand_id, "window")'
+        in defs["ix_content_items_analysis_brand_window"]
+    )
     assert "(analysis_id, source_type)" in defs["ix_content_items_analysis_source_type"]
     assert "(content_hash)" in defs["ix_content_items_content_hash"]
-    assert "(analysis_id, brand_id, url_hash)" in defs["ix_content_items_analysis_brand_url_hash"]
+    assert (
+        "(analysis_id, brand_id, url_hash)"
+        in defs["ix_content_items_analysis_brand_url_hash"]
+    )
     assert "(analysis_id, dup_group)" in defs["ix_content_items_analysis_dup_group"]
     assert "pk_content_items" in defs
 
@@ -929,7 +998,9 @@ def _new_analysis_row(conn, content_id, **overrides):
     } | overrides
     cols = ", ".join(f'"{k}"' for k in values)
     params = ", ".join(f":{k}" for k in values)
-    conn.execute(text(f"INSERT INTO content_analysis ({cols}) VALUES ({params})"), values)
+    conn.execute(
+        text(f"INSERT INTO content_analysis ({cols}) VALUES ({params})"), values
+    )
 
 
 def _new_aspect_row(conn, content_id, **overrides):
@@ -1005,7 +1076,9 @@ def test_nlp_indexes_and_primary_keys(migrated):
     reuse = defs["ix_content_analysis_content_hash_analyzer_version"]
     assert "(content_hash, analyzer_version)" in reuse and "UNIQUE" not in reuse
     assert "(aspect, sentiment)" in defs["ix_item_aspects_aspect_sentiment"]
-    assert "pk_content_analysis" in defs and "(content_id)" in defs["pk_content_analysis"]
+    assert (
+        "pk_content_analysis" in defs and "(content_id)" in defs["pk_content_analysis"]
+    )
     assert "(content_id, aspect)" in defs["pk_item_aspects"]
 
 
@@ -1019,7 +1092,12 @@ def test_content_analysis_defaults(item):
         ),
         {"c": content_id},
     ).one()
-    assert (row.matched_terms, row.topics, row.keywords, row.stamped) == ([], [], [], True)
+    assert (row.matched_terms, row.topics, row.keywords, row.stamped) == (
+        [],
+        [],
+        [],
+        True,
+    )
 
 
 def test_content_analysis_is_one_row_per_item(item):
@@ -1032,7 +1110,9 @@ def test_content_analysis_is_one_row_per_item(item):
 def test_same_hash_and_version_may_exist_for_several_items(ctx):
     conn, analysis, brand = ctx
     first = _new_content_item(conn, analysis, brand)
-    second = _new_content_item(conn, _new_analysis(conn, brand), brand)  # same text, other analysis
+    second = _new_content_item(
+        conn, _new_analysis(conn, brand), brand
+    )  # same text, other analysis
     _new_analysis_row(conn, first)
     _new_analysis_row(conn, second)  # the reuse index is not unique
 

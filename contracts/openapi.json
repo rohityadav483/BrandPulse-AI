@@ -87,10 +87,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Required only when the run needs new SerpApi calls (LIVE_ACCESS_CODE set).",
+              "description": "Required only when new SerpApi calls are needed.",
               "title": "X-Access-Code"
             },
-            "description": "Required only when the run needs new SerpApi calls (LIVE_ACCESS_CODE set)."
+            "description": "Required only when new SerpApi calls are needed."
           }
         ],
         "requestBody": {
@@ -190,7 +190,7 @@
         "tags": [
           "analyses"
         ],
-        "summary": "Recent analyses",
+        "summary": "List Analyses",
         "operationId": "listAnalyses",
         "parameters": [
           {
@@ -245,7 +245,7 @@
         "tags": [
           "analyses"
         ],
-        "summary": "Status, stage, progress",
+        "summary": "Get Analysis",
         "operationId": "getAnalysis",
         "parameters": [
           {
@@ -309,7 +309,7 @@
         "tags": [
           "analyses"
         ],
-        "summary": "Full dashboard payload",
+        "summary": "Get Dashboard",
         "operationId": "getDashboard",
         "parameters": [
           {
@@ -383,7 +383,7 @@
         "tags": [
           "analyses"
         ],
-        "summary": "Source items behind an aspect or sentiment",
+        "summary": "List Mentions",
         "operationId": "listMentions",
         "parameters": [
           {
@@ -411,10 +411,8 @@
                   "type": "null"
                 }
               ],
-              "description": "Default: the target brand.",
               "title": "Brand Id"
-            },
-            "description": "Default: the target brand."
+            }
           },
           {
             "name": "aspect",
@@ -429,10 +427,8 @@
                   "type": "null"
                 }
               ],
-              "description": "e.g. `battery`.",
               "title": "Aspect"
-            },
-            "description": "e.g. `battery`."
+            }
           },
           {
             "name": "sentiment",
@@ -548,7 +544,7 @@
         "tags": [
           "signals"
         ],
-        "summary": "Signal detail",
+        "summary": "Get Signal",
         "operationId": "getSignal",
         "parameters": [
           {
@@ -557,10 +553,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Signal UUID (or a demo alias when DEMO_MODE=true).",
               "title": "Id"
-            },
-            "description": "Signal UUID (or a demo alias when DEMO_MODE=true)."
+            }
           }
         ],
         "responses": {
@@ -612,8 +606,7 @@
         "tags": [
           "signals"
         ],
-        "summary": "Start or reuse an investigation (idempotent by default)",
-        "description": "`202` when a new investigation is created. `200` with `reused: true` when a queued, running or completed investigation already exists and `force` is false.",
+        "summary": "Investigate Signal",
         "operationId": "investigateSignal",
         "parameters": [
           {
@@ -622,10 +615,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Signal UUID (or a demo alias when DEMO_MODE=true).",
               "title": "Id"
-            },
-            "description": "Signal UUID (or a demo alias when DEMO_MODE=true)."
+            }
           },
           {
             "name": "force",
@@ -633,11 +624,9 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Start a new investigation even if a completed one exists.",
               "default": false,
               "title": "Force"
-            },
-            "description": "Start a new investigation even if a completed one exists."
+            }
           },
           {
             "name": "X-Access-Code",
@@ -652,10 +641,8 @@
                   "type": "null"
                 }
               ],
-              "description": "Only when new SerpApi calls are needed",
               "title": "X-Access-Code"
-            },
-            "description": "Only when new SerpApi calls are needed"
+            }
           }
         ],
         "responses": {
@@ -670,7 +657,7 @@
             }
           },
           "200": {
-            "description": "Existing investigation reused (`reused: true`).",
+            "description": "Existing investigation reused",
             "content": {
               "application/json": {
                 "schema": {
@@ -747,7 +734,7 @@
         "tags": [
           "investigations"
         ],
-        "summary": "Status, then full report",
+        "summary": "Get Investigation",
         "operationId": "getInvestigation",
         "parameters": [
           {
@@ -756,10 +743,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Investigation UUID (or a demo alias when DEMO_MODE=true).",
               "title": "Id"
-            },
-            "description": "Investigation UUID (or a demo alias when DEMO_MODE=true)."
+            }
           }
         ],
         "responses": {
@@ -792,16 +777,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "not_implemented: route is a contract stub until its phase lands.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -811,7 +786,7 @@
         "tags": [
           "investigations"
         ],
-        "summary": "Evidence explorer",
+        "summary": "List Investigation Evidence",
         "operationId": "listInvestigationEvidence",
         "parameters": [
           {
@@ -820,10 +795,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Investigation UUID (or a demo alias when DEMO_MODE=true).",
               "title": "Id"
-            },
-            "description": "Investigation UUID (or a demo alias when DEMO_MODE=true)."
+            }
           },
           {
             "name": "stance",
@@ -911,16 +884,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "not_implemented: route is a contract stub until its phase lands.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -930,7 +893,7 @@
         "tags": [
           "usage"
         ],
-        "summary": "Monthly SerpApi and daily Groq/analysis usage",
+        "summary": "Get Usage",
         "operationId": "getUsage",
         "responses": {
           "200": {

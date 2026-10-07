@@ -18,7 +18,11 @@ from app.schemas.api import (
 )
 
 FIXTURE = (
-    Path(__file__).resolve().parents[2] / ".." / "contracts" / "golden" / "samsung_battery.json"
+    Path(__file__).resolve().parents[2]
+    / ".."
+    / "contracts"
+    / "golden"
+    / "samsung_battery.json"
 )
 
 
@@ -65,7 +69,11 @@ def test_golden_investigation_confidence_formula(golden):
     f = golden["formula_inputs"]["confidence"]
     assert (
         investigation_confidence(
-            f["independence"], f["agreement"], f["signal_strength"], f["recency"], f["consistency"]
+            f["independence"],
+            f["agreement"],
+            f["signal_strength"],
+            f["recency"],
+            f["consistency"],
         )
         == f["expected_score"]
     )

@@ -65,7 +65,9 @@ class ItemAnalysis(_Frozen):
     def _aspects_are_unique(self) -> Self:
         names = [a.aspect for a in self.aspects]
         if len(set(names)) != len(names):
-            raise ValueError("aspects must be unique per item (PK is content_id, aspect)")
+            raise ValueError(
+                "aspects must be unique per item (PK is content_id, aspect)"
+            )
         return self
 
 

@@ -33,7 +33,9 @@ class QuotaLow(Exception):
 class UsageStore(Protocol):
     """Storage port. Implemented by `SerpUsageRepository` and `InMemoryUsageStore`."""
 
-    def monthly_credits(self, account_label: str, start: datetime, end: datetime) -> int: ...
+    def monthly_credits(
+        self, account_label: str, start: datetime, end: datetime
+    ) -> int: ...
 
     def add(self, record: UsageRecord) -> None: ...
 
@@ -101,7 +103,9 @@ class MonthlyQuota:
         usage store, let alone the network.
         """
         if not self._allow_live:
-            raise LiveDataDisabled("live SerpApi calls are disabled (ALLOW_LIVE_SERPAPI=false)")
+            raise LiveDataDisabled(
+                "live SerpApi calls are disabled (ALLOW_LIVE_SERPAPI=false)"
+            )
         remaining = self.snapshot().remaining
         if remaining - calls < self._reserve:
             raise QuotaLow(remaining, self._reserve)

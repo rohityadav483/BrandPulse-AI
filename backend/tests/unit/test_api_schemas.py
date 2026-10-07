@@ -168,7 +168,12 @@ EXAMPLES: dict[str, tuple[type, dict]] = {
                 }
             ],
             "signals": [
-                {**SIGNAL_COMMON, "id": uid(5), "brand_id": uid(1), "investigation_id": None}
+                {
+                    **SIGNAL_COMMON,
+                    "id": uid(5),
+                    "brand_id": uid(1),
+                    "investigation_id": None,
+                }
             ],
         },
     ),
@@ -178,7 +183,9 @@ EXAMPLES: dict[str, tuple[type, dict]] = {
             "items": [
                 {
                     "id": uid(6),
-                    "source": source(source_type="youtube", date_confidence="approximate"),
+                    "source": source(
+                        source_type="youtube", date_confidence="approximate"
+                    ),
                     "sentiment": "negative",
                     "aspects": [
                         {
@@ -239,7 +246,11 @@ EXAMPLES: dict[str, tuple[type, dict]] = {
                     "label": "Collecting independent evidence",
                     "state": "active",
                 },
-                {"key": "scoring_evidence", "label": "Cross-checking sources", "state": "pending"},
+                {
+                    "key": "scoring_evidence",
+                    "label": "Cross-checking sources",
+                    "state": "pending",
+                },
             ],
             "report": None,
             "error": None,
@@ -258,7 +269,10 @@ EXAMPLES: dict[str, tuple[type, dict]] = {
                 "generated_by": "llm",
                 "summary": "The rise in battery complaints appears to be associated with updates.",
                 "findings": [
-                    {"text": "Forum threads report drain.", "evidence_ids": [uid(8), uid(9)]},
+                    {
+                        "text": "Forum threads report drain.",
+                        "evidence_ids": [uid(8), uid(9)],
+                    },
                 ],
                 "scope": {
                     "verdict": "brand_specific",
@@ -363,7 +377,11 @@ EXAMPLES: dict[str, tuple[type, dict]] = {
                 "reserve": 20,
                 "live_enabled": True,
             },
-            "groq": {"configured": True, "calls_today": 6, "model": "configured-model-id"},
+            "groq": {
+                "configured": True,
+                "calls_today": 6,
+                "model": "configured-model-id",
+            },
             "analyses_today": {"used": 1, "limit": 3},
         },
     ),
@@ -428,7 +446,9 @@ def test_request_full_example():
 
 
 def test_request_trims_text():
-    req = api.CreateAnalysisRequest(brand="  Samsung  ", product="  S25  ", competitors=[" Apple "])
+    req = api.CreateAnalysisRequest(
+        brand="  Samsung  ", product="  S25  ", competitors=[" Apple "]
+    )
     assert (req.brand, req.product, req.competitors) == ("Samsung", "S25", ["Apple"])
 
 
@@ -487,7 +507,9 @@ def test_period_days_rejected(days):
 
 
 def test_category_values():
-    assert api.CreateAnalysisRequest(brand="A", category="generic").category == "generic"
+    assert (
+        api.CreateAnalysisRequest(brand="A", category="generic").category == "generic"
+    )
     with pytest.raises(ValidationError):
         api.CreateAnalysisRequest(brand="A", category="fashion")
 
@@ -536,7 +558,9 @@ def test_percent_fields_are_bounded():
     with pytest.raises(ValidationError):
         api.SentimentDistribution.model_validate({**base, "positive": 101})
     with pytest.raises(ValidationError):
-        api.AspectStat(aspect="a", net_score=-101, mentions=1, positive=0, neutral=0, negative=0)
+        api.AspectStat(
+            aspect="a", net_score=-101, mentions=1, positive=0, neutral=0, negative=0
+        )
 
 
 def test_share_fields_are_fractions():
@@ -553,7 +577,9 @@ def test_source_type_rejects_trends_but_coverage_accepts_it():
 
 
 def test_source_dates_can_be_unknown():
-    src = api.Source.model_validate(source(published_at=None, date_confidence="unknown"))
+    src = api.Source.model_validate(
+        source(published_at=None, date_confidence="unknown")
+    )
     assert src.published_at is None
 
 
@@ -578,7 +604,11 @@ def test_report_may_be_inconclusive_with_no_findings():
         "source_coverage": [],
         "search_interest": None,
         "competitor_comparison": None,
-        "scope": {"verdict": "unknown", "ratio": None, "explanation": "No competitor data."},
+        "scope": {
+            "verdict": "unknown",
+            "ratio": None,
+            "explanation": "No competitor data.",
+        },
         "confidence": {**report["confidence"], "score": 20, "label": "low"},
     }
     parsed = api.InvestigationReport.model_validate(slim)

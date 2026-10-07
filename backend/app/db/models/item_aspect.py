@@ -31,6 +31,8 @@ class ItemAspectRow(Base):
     )
     aspect: Mapped[str] = mapped_column(Text, primary_key=True)
     clause: Mapped[str] = mapped_column(Text, nullable=False)
-    sentiment: Mapped[Sentiment] = mapped_column(pg_enum(Sentiment, "sentiment"), nullable=False)
+    sentiment: Mapped[Sentiment] = mapped_column(
+        pg_enum(Sentiment, "sentiment"), nullable=False
+    )
     negative_prob: Mapped[float] = mapped_column(REAL, nullable=False)
     score: Mapped[float] = mapped_column(REAL, nullable=False)

@@ -60,15 +60,21 @@ def load_dataset(path: str | Path) -> EvalDataset:
             raise ValueError(f"duplicate id {item_id!r}")
         seen.add(item_id)
         if raw["label"] not in LABELS:
-            raise ValueError(f"{item_id}: label must be one of {LABELS}, got {raw['label']!r}")
+            raise ValueError(
+                f"{item_id}: label must be one of {LABELS}, got {raw['label']!r}"
+            )
         if not str(raw.get("title", "")).strip():
             raise ValueError(f"{item_id}: title must not be blank")
         aspects = dict(raw.get("aspects") or {})
         for aspect, label in aspects.items():
             if aspect not in lexicon:
-                raise ValueError(f"{item_id}: unknown aspect {aspect!r} for {category_key}")
+                raise ValueError(
+                    f"{item_id}: unknown aspect {aspect!r} for {category_key}"
+                )
             if label not in LABELS:
-                raise ValueError(f"{item_id}: aspect {aspect!r} has invalid label {label!r}")
+                raise ValueError(
+                    f"{item_id}: aspect {aspect!r} has invalid label {label!r}"
+                )
         items.append(
             EvalItem(
                 id=item_id,
@@ -187,7 +193,9 @@ def run_analyzer(
         plan.append((item, overall_slot, slots))
     results = analyzer.analyze(texts)
     if len(results) != len(texts):
-        raise ValueError(f"analyzer returned {len(results)} results for {len(texts)} texts")
+        raise ValueError(
+            f"analyzer returned {len(results)} results for {len(texts)} texts"
+        )
     outcomes: list[ItemOutcome] = []
     for item, overall_slot, slots in plan:
         detected = {aspect for aspect, _, _ in slots}
@@ -196,7 +204,9 @@ def run_analyzer(
                 item=item,
                 result=results[overall_slot],
                 aspects=tuple(
-                    AspectOutcome(aspect, clause, item.aspects.get(aspect), results[slot])
+                    AspectOutcome(
+                        aspect, clause, item.aspects.get(aspect), results[slot]
+                    )
                     for aspect, clause, slot in slots
                 ),
                 missed_aspects=tuple(a for a in item.aspects if a not in detected),
@@ -233,7 +243,9 @@ class AspectDetection:
     detected: int  # of those, found by the lexicon
     recall: float
     missed: tuple[str, ...]  # "item_id:aspect"
-    unannotated_detected: int  # detected but not annotated (not an error: labels are partial)
+    unannotated_detected: (
+        int  # detected but not annotated (not an error: labels are partial)
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,7 +258,9 @@ class EvalReport:
     aspect_misclassified: tuple[str, ...]  # "item_id:aspect expected->predicted"
 
 
-def score(outcomes: Sequence[ItemOutcome], *, margin: float | None = None) -> EvalReport:
+def score(
+    outcomes: Sequence[ItemOutcome], *, margin: float | None = None
+) -> EvalReport:
     """Metrics for one run. With `margin`, labels are re-derived from the probabilities."""
 
     def label_of(result: SentimentResult) -> str:
@@ -286,8 +300,12 @@ def score(outcomes: Sequence[ItemOutcome], *, margin: float | None = None) -> Ev
     return EvalReport(
         margin=margin,
         overall=classification_report(expected, predicted),
-        aspect_detection=AspectDetection(annotated, found, _ratio(found, annotated), missed, extra),
-        aspect_sentiment=classification_report(a_expected, a_predicted) if a_expected else None,
+        aspect_detection=AspectDetection(
+            annotated, found, _ratio(found, annotated), missed, extra
+        ),
+        aspect_sentiment=classification_report(a_expected, a_predicted)
+        if a_expected
+        else None,
         misclassified=wrong,
         aspect_misclassified=tuple(a_wrong),
     )

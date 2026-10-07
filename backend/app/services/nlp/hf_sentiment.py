@@ -61,12 +61,18 @@ def map_labels(labels: Sequence[str]) -> tuple[Sentiment, ...]:
     for raw in labels:
         sentiment = _LABELS.get(str(raw).strip().casefold())
         if sentiment is None:
-            raise ModelUnavailableError(f"unsupported sentiment label {raw!r} in {list(labels)}")
+            raise ModelUnavailableError(
+                f"unsupported sentiment label {raw!r} in {list(labels)}"
+            )
         mapped.append(sentiment)
     if len(set(mapped)) != len(mapped):
-        raise ModelUnavailableError(f"duplicate sentiment classes in labels {list(labels)}")
+        raise ModelUnavailableError(
+            f"duplicate sentiment classes in labels {list(labels)}"
+        )
     if Sentiment.positive not in mapped or Sentiment.negative not in mapped:
-        raise ModelUnavailableError(f"model needs a positive and a negative class: {list(labels)}")
+        raise ModelUnavailableError(
+            f"model needs a positive and a negative class: {list(labels)}"
+        )
     return tuple(mapped)
 
 
@@ -81,13 +87,19 @@ def to_result(
     total = math.fsum(row)
     if total <= 0:
         raise ValueError("class probabilities sum to zero")
-    by_class = {Sentiment.positive: 0.0, Sentiment.neutral: 0.0, Sentiment.negative: 0.0}
+    by_class = {
+        Sentiment.positive: 0.0,
+        Sentiment.neutral: 0.0,
+        Sentiment.negative: 0.0,
+    }
     for sentiment, probability in zip(classes, row, strict=True):
         by_class[sentiment] = probability / total
     ranked = sorted(by_class.items(), key=lambda item: item[1], reverse=True)
     top_class, top_prob = ranked[0]
     runner_up_prob = ranked[1][1]
-    label = top_class if top_prob - runner_up_prob >= neutral_margin else Sentiment.neutral
+    label = (
+        top_class if top_prob - runner_up_prob >= neutral_margin else Sentiment.neutral
+    )
     return SentimentResult(
         label,
         by_class[Sentiment.positive],
@@ -127,7 +139,9 @@ class HFSentimentAnalyzer:
         )
         self._batch_size = batch_size
         self._neutral_margin = neutral_margin
-        self._factory: ClassifierFactory = classifier_factory or load_sequence_classifier
+        self._factory: ClassifierFactory = (
+            classifier_factory or load_sequence_classifier
+        )
         self._classes: tuple[Sentiment, ...] | None = None
         self._classifier: SequenceClassifier | None = None
 
@@ -174,7 +188,9 @@ class HFSentimentAnalyzer:
                 chunk = pending[start : start + self._batch_size]
                 rows = classifier.predict_proba([texts[i] for i in chunk])
                 if len(rows) != len(chunk):
-                    raise ValueError(f"classifier returned {len(rows)} rows for {len(chunk)} texts")
+                    raise ValueError(
+                        f"classifier returned {len(rows)} rows for {len(chunk)} texts"
+                    )
                 for position, row in zip(chunk, rows, strict=True):
                     results[position] = to_result(row, classes, self._neutral_margin)
         return [result for result in results if result is not None]

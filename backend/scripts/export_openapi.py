@@ -34,15 +34,21 @@ def render(spec: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--check", action="store_true", help="fail if the file would change")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if the file would change"
+    )
     args = parser.parse_args(argv)
 
     text = render(build_openapi())
 
     if args.check:
-        current = args.output.read_text(encoding="utf-8") if args.output.exists() else ""
+        current = (
+            args.output.read_text(encoding="utf-8") if args.output.exists() else ""
+        )
         if current != text:
-            print(f"{args.output} is out of date. Run: python scripts/export_openapi.py")
+            print(
+                f"{args.output} is out of date. Run: python scripts/export_openapi.py"
+            )
             return 1
         print(f"{args.output} is up to date.")
         return 0

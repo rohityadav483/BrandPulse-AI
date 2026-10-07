@@ -96,7 +96,9 @@ def test_access_code_header_only_on_live_capable_operations(spec):
 
 def test_create_and_estimate_share_one_request_schema(spec):
     for op_id in ("createAnalysis", "estimateAnalysis"):
-        body = _operations(spec)[op_id][2]["requestBody"]["content"]["application/json"]["schema"]
+        body = _operations(spec)[op_id][2]["requestBody"]["content"][
+            "application/json"
+        ]["schema"]
         assert body["$ref"] == "#/components/schemas/CreateAnalysisRequest"
 
 
@@ -107,14 +109,20 @@ def test_request_schema_constraints_are_in_the_contract(spec):
     assert props["competitors"]["items"]["maxLength"] == 80
     assert props["period_days"]["enum"] == [7, 14, 30]
     assert props["period_days"]["default"] == 30
-    assert spec["components"]["schemas"]["CreateAnalysisRequest"]["required"] == ["brand"]
+    assert spec["components"]["schemas"]["CreateAnalysisRequest"]["required"] == [
+        "brand"
+    ]
 
 
 def test_query_parameters_match_the_contract(spec):
     ops = _operations(spec)
 
     def params(op_id):
-        return {p["name"]: p for p in ops[op_id][2].get("parameters", []) if p["in"] == "query"}
+        return {
+            p["name"]: p
+            for p in ops[op_id][2].get("parameters", [])
+            if p["in"] == "query"
+        }
 
     limit = params("listAnalyses")["limit"]["schema"]
     assert (limit["default"], limit["minimum"], limit["maximum"]) == (10, 1, 50)
@@ -195,7 +203,9 @@ def test_stub_routes_answer_501_in_the_error_envelope(make_client):
 
 def test_request_validation_runs_before_the_stub(make_client):
     client = make_client()
-    res = client.post(f"{P}/analyses", json={"brand": "A", "competitors": ["B", "C", "D"]})
+    res = client.post(
+        f"{P}/analyses", json={"brand": "A", "competitors": ["B", "C", "D"]}
+    )
     assert res.status_code == 422
     body = res.json()["error"]
     assert body["code"] == "validation_error"
@@ -225,7 +235,9 @@ def test_export_script_writes_and_checks(tmp_path):
     assert export.main(["--output", str(out)]) == 0
     assert export.main(["--output", str(out), "--check"]) == 0
     first = out.read_text(encoding="utf-8")
-    assert first.endswith("\n") and json.loads(first)["info"]["title"] == "BrandPulse AI"
+    assert (
+        first.endswith("\n") and json.loads(first)["info"]["title"] == "BrandPulse AI"
+    )
     export.main(["--output", str(out)])
     assert out.read_text(encoding="utf-8") == first  # deterministic
     out.write_text(first.replace("BrandPulse AI", "Other"), encoding="utf-8")
@@ -241,5 +253,9 @@ def test_committed_contract_is_up_to_date():
     assert export.main(["--output", str(CONTRACT_PATH), "--check"]) == 0
     committed = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
     assert committed["openapi"].startswith("3.")
-    ids = {op["operationId"] for item in committed["paths"].values() for op in item.values()}
+    ids = {
+        op["operationId"]
+        for item in committed["paths"].values()
+        for op in item.values()
+    }
     assert ids == set(OPERATIONS)

@@ -33,7 +33,9 @@ class InMemoryCacheStore:
         return True
 
     def purge_expired(self, now: datetime) -> int:
-        stale = [key for key, e in self.rows.items() if not e.pinned and e.expires_at <= now]
+        stale = [
+            key for key, e in self.rows.items() if not e.pinned and e.expires_at <= now
+        ]
         for key in stale:
             del self.rows[key]
         return len(stale)
@@ -45,7 +47,9 @@ class InMemoryUsageStore:
     def __init__(self) -> None:
         self.records: list[UsageRecord] = []
 
-    def monthly_credits(self, account_label: str, start: datetime, end: datetime) -> int:
+    def monthly_credits(
+        self, account_label: str, start: datetime, end: datetime
+    ) -> int:
         return sum(
             r.credits
             for r in self.records
@@ -67,7 +71,9 @@ class ScriptedTransport:
         self._script = script
         self.calls: list[dict[str, str]] = []
 
-    def get(self, url: str, params: Mapping[str, str], timeout: float) -> TransportResponse:
+    def get(
+        self, url: str, params: Mapping[str, str], timeout: float
+    ) -> TransportResponse:
         self.calls.append(dict(params))
         outcome = self._script(params["engine"], params)
         if isinstance(outcome, Exception):

@@ -21,7 +21,9 @@ def _clean_terms(values: Iterable[str], field: str) -> tuple[str, ...]:
     cleaned: list[str] = []
     for value in values:
         if not isinstance(value, str):
-            raise TypeError(f"{field} entries must be strings, got {type(value).__name__}")
+            raise TypeError(
+                f"{field} entries must be strings, got {type(value).__name__}"
+            )
         stripped = value.strip()
         if stripped:
             cleaned.append(stripped)

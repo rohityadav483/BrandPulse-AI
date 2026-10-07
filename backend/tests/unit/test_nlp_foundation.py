@@ -16,13 +16,17 @@ from app.services.nlp.relevance import BrandProfile, detect_relevance
 from app.services.nlp.sentiment import SentimentAnalyzer, StubSentimentAnalyzer
 
 NLP_DIR = Path(__file__).resolve().parents[2] / "app" / "services" / "nlp"
-SAMSUNG = BrandProfile("Samsung", products=("Galaxy S25 Ultra",), aliases=("S25 Ultra",))
+SAMSUNG = BrandProfile(
+    "Samsung", products=("Galaxy S25 Ultra",), aliases=("S25 Ultra",)
+)
 
 
 def aspect_sentiments(text: str, analyzer: SentimentAnalyzer) -> dict[str, Sentiment]:
     found: list[AspectClause] = detect_aspects_in_text(text)
     results = analyzer.analyze([item.clause.text for item in found])
-    return {item.aspect: result.label for item, result in zip(found, results, strict=True)}
+    return {
+        item.aspect: result.label for item, result in zip(found, results, strict=True)
+    }
 
 
 def test_prd_example_camera_positive_battery_negative():
@@ -98,8 +102,14 @@ def _imports(path: Path) -> set[str]:
     "module", ["aspects", "clauses", "relevance", "sentiment", "textnorm"], ids=str
 )
 def test_nlp_modules_respect_the_layering(module):
-    allowed_app_prefixes = ("app.config.taxonomy", "app.schemas.domain", "app.services.nlp")
+    allowed_app_prefixes = (
+        "app.config.taxonomy",
+        "app.schemas.domain",
+        "app.services.nlp",
+    )
     for name in _imports(NLP_DIR / f"{module}.py"):
-        assert not name.startswith(("torch", "transformers", "sqlalchemy", "httpx", "urllib")), name
+        assert not name.startswith(
+            ("torch", "transformers", "sqlalchemy", "httpx", "urllib")
+        ), name
         if name.startswith("app."):
             assert name.startswith(allowed_app_prefixes), f"{module} imports {name}"

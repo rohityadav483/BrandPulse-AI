@@ -12,8 +12,9 @@ Create Date: 2026-10-06
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0001"
 down_revision: str | None = None
@@ -105,26 +106,45 @@ def upgrade() -> None:
             server_default=sa.text("'consumer_electronics'"),
             nullable=True,
         ),
-        sa.Column("period_days", sa.SmallInteger(), server_default=sa.text("30"), nullable=False),
+        sa.Column(
+            "period_days",
+            sa.SmallInteger(),
+            server_default=sa.text("30"),
+            nullable=False,
+        ),
         sa.Column("as_of_date", sa.Date(), nullable=False),
         sa.Column("current_start", sa.Date(), nullable=False),
         sa.Column("current_end", sa.Date(), nullable=False),
         sa.Column("baseline_start", sa.Date(), nullable=False),
         sa.Column("baseline_end", sa.Date(), nullable=False),
         sa.Column(
-            "status", _enum("analysis_status"), server_default=sa.text("'queued'"), nullable=False
+            "status",
+            _enum("analysis_status"),
+            server_default=sa.text("'queued'"),
+            nullable=False,
         ),
         sa.Column("stage", _enum("analysis_stage"), nullable=True),
-        sa.Column("progress", sa.SmallInteger(), server_default=sa.text("0"), nullable=False),
+        sa.Column(
+            "progress", sa.SmallInteger(), server_default=sa.text("0"), nullable=False
+        ),
         sa.Column(
             "warnings",
             postgresql.JSONB(),
             server_default=sa.text("'[]'::jsonb"),
             nullable=False,
         ),
-        sa.Column("serp_calls_used", sa.Integer(), server_default=sa.text("0"), nullable=False),
-        sa.Column("serp_calls_budget", sa.Integer(), server_default=sa.text("12"), nullable=False),
-        sa.Column("live_run", sa.Boolean(), server_default=sa.text("false"), nullable=False),
+        sa.Column(
+            "serp_calls_used", sa.Integer(), server_default=sa.text("0"), nullable=False
+        ),
+        sa.Column(
+            "serp_calls_budget",
+            sa.Integer(),
+            server_default=sa.text("12"),
+            nullable=False,
+        ),
+        sa.Column(
+            "live_run", sa.Boolean(), server_default=sa.text("false"), nullable=False
+        ),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("client_ip_hash", sa.Text(), nullable=True),
         sa.Column(
@@ -135,11 +155,15 @@ def upgrade() -> None:
         ),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
-        sa.CheckConstraint("char_length(product) <= 80", name=op.f("ck_analyses_product_max_80")),
+        sa.CheckConstraint(
+            "char_length(product) <= 80", name=op.f("ck_analyses_product_max_80")
+        ),
         sa.CheckConstraint(
             "period_days IN (7, 14, 30)", name=op.f("ck_analyses_period_days_allowed")
         ),
-        sa.CheckConstraint("progress BETWEEN 0 AND 100", name=op.f("ck_analyses_progress_range")),
+        sa.CheckConstraint(
+            "progress BETWEEN 0 AND 100", name=op.f("ck_analyses_progress_range")
+        ),
         sa.ForeignKeyConstraint(
             ["brand_id"], ["brands.id"], name=op.f("fk_analyses_brand_id_brands")
         ),
@@ -147,7 +171,9 @@ def upgrade() -> None:
     )
     op.create_index("ix_analyses_created_at", "analyses", [sa.text("created_at DESC")])
     op.create_index(
-        "ix_analyses_client_ip_hash_created_at", "analyses", ["client_ip_hash", "created_at"]
+        "ix_analyses_client_ip_hash_created_at",
+        "analyses",
+        ["client_ip_hash", "created_at"],
     )
     op.create_index("ix_analyses_status", "analyses", ["status"])
 
@@ -165,7 +191,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["brand_id"], ["brands.id"], name=op.f("fk_analysis_brands_brand_id_brands")
         ),
-        sa.PrimaryKeyConstraint("analysis_id", "brand_id", name=op.f("pk_analysis_brands")),
+        sa.PrimaryKeyConstraint(
+            "analysis_id", "brand_id", name=op.f("pk_analysis_brands")
+        ),
     )
     op.create_index(
         "uq_analysis_brands_one_target",

@@ -22,11 +22,15 @@ from app.services.nlp.textnorm import normalize_text
 class AspectClause:
     aspect: str
     clause: Clause
-    matched_terms: tuple[str, ...]  # lexicon terms (normalised form) found in the clause
+    matched_terms: tuple[
+        str, ...
+    ]  # lexicon terms (normalised form) found in the clause
 
 
 @cache
-def _compiled(category_key: str) -> tuple[tuple[str, tuple[tuple[str, re.Pattern[str]], ...]], ...]:
+def _compiled(
+    category_key: str,
+) -> tuple[tuple[str, tuple[tuple[str, re.Pattern[str]], ...]], ...]:
     lexicon = get_lexicon(category_key)
     compiled = []
     for aspect, terms in lexicon.items():
@@ -72,7 +76,9 @@ def detect_aspects(
             if current is None or len(hits) > len(current.matched_terms):
                 best[aspect] = AspectClause(aspect, clause, hits)
     order = {aspect: position for position, aspect in enumerate(get_lexicon(category))}
-    return sorted(best.values(), key=lambda found: (found.clause.index, order[found.aspect]))
+    return sorted(
+        best.values(), key=lambda found: (found.clause.index, order[found.aspect])
+    )
 
 
 def detect_aspects_in_text(

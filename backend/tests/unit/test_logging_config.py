@@ -57,5 +57,7 @@ def test_configure_logging_is_idempotent_and_sets_level():
 
 
 def test_uvicorn_color_message_is_not_emitted():
-    out = json.loads(JsonFormatter().format(_record("Started", color_message="\x1b[36mx")))
+    out = json.loads(
+        JsonFormatter().format(_record("Started", color_message="\x1b[36mx"))
+    )
     assert "color_message" not in out

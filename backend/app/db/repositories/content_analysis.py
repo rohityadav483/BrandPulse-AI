@@ -51,7 +51,9 @@ def _analysis_values(
     } | extra
 
 
-def _stored(row: ContentAnalysisRow, aspects: Sequence[ItemAspectRow]) -> StoredItemAnalysis:
+def _stored(
+    row: ContentAnalysisRow, aspects: Sequence[ItemAspectRow]
+) -> StoredItemAnalysis:
     return StoredItemAnalysis(
         content_id=row.content_id,
         content_hash=row.content_hash,
@@ -66,7 +68,9 @@ def _stored(row: ContentAnalysisRow, aspects: Sequence[ItemAspectRow]) -> Stored
             keywords=tuple(row.keywords),
             model=row.model,
             analyzer_version=row.analyzer_version,
-            aspects=tuple(to_aspect(a) for a in sorted(aspects, key=lambda a: a.aspect)),
+            aspects=tuple(
+                to_aspect(a) for a in sorted(aspects, key=lambda a: a.aspect)
+            ),
         ),
     )
 
@@ -128,7 +132,12 @@ class ContentAnalysisRepository:
             raise ValueError("duplicate content_id in one save_many call")
         statement = (
             pg_insert(ContentAnalysisRow)
-            .values([_analysis_values(i.content_id, i.content_hash, i.analysis) for i in items])
+            .values(
+                [
+                    _analysis_values(i.content_id, i.content_hash, i.analysis)
+                    for i in items
+                ]
+            )
             .on_conflict_do_nothing(index_elements=[ContentAnalysisRow.content_id])
             .returning(ContentAnalysisRow.content_id)
         )
@@ -152,7 +161,9 @@ class ContentAnalysisRepository:
     def get(self, content_id: uuid.UUID) -> StoredItemAnalysis | None:
         return self.get_many([content_id]).get(content_id)
 
-    def get_many(self, content_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, StoredItemAnalysis]:
+    def get_many(
+        self, content_ids: Iterable[uuid.UUID]
+    ) -> dict[uuid.UUID, StoredItemAnalysis]:
         ids = list(set(content_ids))
         if not ids:
             return {}
@@ -162,7 +173,10 @@ class ContentAnalysisRepository:
             ).scalars()
             rows = list(rows)
             aspects = _aspects_by_content(session, (row.content_id for row in rows))
-            return {row.content_id: _stored(row, aspects.get(row.content_id, ())) for row in rows}
+            return {
+                row.content_id: _stored(row, aspects.get(row.content_id, ()))
+                for row in rows
+            }
 
     def list_for_analysis(
         self,
@@ -181,7 +195,9 @@ class ContentAnalysisRepository:
         if brand_id is not None:
             statement = statement.where(ContentItemRow.brand_id == brand_id)
         if is_about_brand is not None:
-            statement = statement.where(ContentAnalysisRow.is_about_brand.is_(is_about_brand))
+            statement = statement.where(
+                ContentAnalysisRow.is_about_brand.is_(is_about_brand)
+            )
         with Session(self._engine) as session:
             rows = list(session.execute(statement).scalars())
             aspects = _aspects_by_content(session, (row.content_id for row in rows))
@@ -203,7 +219,9 @@ class ContentAnalysisRepository:
         if brand_id is not None:
             statement = statement.where(ContentItemRow.brand_id == brand_id)
         if is_about_brand is not None:
-            statement = statement.where(ContentAnalysisRow.is_about_brand.is_(is_about_brand))
+            statement = statement.where(
+                ContentAnalysisRow.is_about_brand.is_(is_about_brand)
+            )
         with Session(self._engine) as session:
             return session.execute(statement).scalar_one()
 
@@ -230,7 +248,9 @@ class ContentAnalysisRepository:
             sources = _reusable_sources(session, content_hashes, analyzer_version)
         return {content_hash: row.content_id for content_hash, row in sources.items()}
 
-    def copy_reusable(self, targets: Sequence[ReuseTarget], analyzer_version: str) -> ReuseResult:
+    def copy_reusable(
+        self, targets: Sequence[ReuseTarget], analyzer_version: str
+    ) -> ReuseResult:
         """Copy earlier results onto `targets` without inference, in one transaction.
 
         Targets that already have a row are left alone (`already_analyzed`); targets with no
@@ -247,14 +267,20 @@ class ContentAnalysisRepository:
             existing = set(
                 session.execute(
                     select(ContentAnalysisRow.content_id).where(
-                        ContentAnalysisRow.content_id.in_([t.content_id for t in targets])
+                        ContentAnalysisRow.content_id.in_(
+                            [t.content_id for t in targets]
+                        )
                     )
                 ).scalars()
             )
             todo = [t for t in targets if t.content_id not in existing]
             already = [t.content_id for t in targets if t.content_id in existing]
-            sources = _reusable_sources(session, (t.content_hash for t in todo), analyzer_version)
-            source_aspects = _aspects_by_content(session, (r.content_id for r in sources.values()))
+            sources = _reusable_sources(
+                session, (t.content_hash for t in todo), analyzer_version
+            )
+            source_aspects = _aspects_by_content(
+                session, (r.content_id for r in sources.values())
+            )
             analysis_rows: list[dict] = []
             aspect_rows: list[dict] = []
             for target in todo:
@@ -288,5 +314,7 @@ class ContentAnalysisRepository:
             if aspect_rows:
                 session.execute(pg_insert(ItemAspectRow).values(aspect_rows))
         return ReuseResult(
-            reused=tuple(reused), missing=tuple(missing), already_analyzed=tuple(already)
+            reused=tuple(reused),
+            missing=tuple(missing),
+            already_analyzed=tuple(already),
         )

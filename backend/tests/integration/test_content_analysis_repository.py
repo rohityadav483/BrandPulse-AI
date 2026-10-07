@@ -17,7 +17,13 @@ from sqlalchemy.exc import IntegrityError
 from app.db.repositories.content_analysis import ContentAnalysisRepository
 from app.db.repositories.content_item import ContentItemRepository
 from app.db.repositories.item_aspect import ItemAspectRepository
-from app.schemas.domain import ContentPurpose, DateConfidence, Sentiment, SourceType, WindowKind
+from app.schemas.domain import (
+    ContentPurpose,
+    DateConfidence,
+    Sentiment,
+    SourceType,
+    WindowKind,
+)
 from app.schemas.nlp import (
     AspectSentiment,
     NewItemAnalysis,
@@ -105,7 +111,9 @@ def stored(content, analysis, brand):
 
 def analyze_stored(stored_ids, items, analyzer=None):
     analyzer = analyzer or StubSentimentAnalyzer()
-    analyses = analyze_items([ItemText(i.title, i.snippet) for i in items], SAMSUNG, analyzer)
+    analyses = analyze_items(
+        [ItemText(i.title, i.snippet) for i in items], SAMSUNG, analyzer
+    )
     return [
         NewItemAnalysis(content_id=cid, content_hash=item.content_hash, analysis=result)
         for cid, item, result in zip(stored_ids.values(), items, analyses, strict=True)
@@ -131,7 +139,10 @@ def test_save_and_read_back_round_trip(repo, stored):
         True,
         ("Samsung",),
     )
-    assert got.model == expected.model and got.analyzer_version == expected.analyzer_version
+    assert (
+        got.model == expected.model
+        and got.analyzer_version == expected.analyzer_version
+    )
     assert got.sentiment_score == pytest.approx(expected.sentiment_score, abs=1e-6)
     assert got.negative_prob == pytest.approx(expected.negative_prob, abs=1e-6)
     # keywords/topics (Phase 4.3) must survive the text[] columns unchanged
@@ -162,11 +173,15 @@ def test_save_is_idempotent_and_never_overwrites(repo, aspects_repo, stored):
     assert (again.inserted, again.skipped, again.inserted_ids) == (0, 3, ())
     assert len(aspects_repo.list_for_content(ids["pro"])) == 2  # no duplicated aspects
 
-    changed = rows[0].analysis.model_copy(update={"sentiment": Sentiment.positive, "aspects": ()})
+    changed = rows[0].analysis.model_copy(
+        update={"sentiment": Sentiment.positive, "aspects": ()}
+    )
     result = repo.save_many(
         [
             NewItemAnalysis(
-                content_id=ids["pro"], content_hash=items[0].content_hash, analysis=changed
+                content_id=ids["pro"],
+                content_hash=items[0].content_hash,
+                analysis=changed,
             )
         ]
     )
@@ -205,7 +220,9 @@ def test_get_many_and_missing(repo, stored):
     assert repo.analyzed_content_ids(ids.values()) == {ids["pro"], ids["price"]}
 
 
-def test_list_and_count_for_analysis_with_filters(repo, stored, analysis, brand, new_analysis):
+def test_list_and_count_for_analysis_with_filters(
+    repo, stored, analysis, brand, new_analysis
+):
     ids, items = stored
     repo.save_many(analyze_stored(ids, items))
     assert repo.count_for_analysis(analysis) == 3
@@ -221,15 +238,28 @@ def test_list_and_count_for_analysis_with_filters(repo, stored, analysis, brand,
 # ---- item_aspects repository ----
 
 
-def test_aspect_repository_queries(repo, aspects_repo, content, stored, analysis, brand):
+def test_aspect_repository_queries(
+    repo, aspects_repo, content, stored, analysis, brand
+):
     ids, items = stored
     repo.save_many(analyze_stored(ids, items))
-    assert [a.aspect for a in aspects_repo.list_for_content(ids["pro"])] == ["battery", "camera"]
+    assert [a.aspect for a in aspects_repo.list_for_content(ids["pro"])] == [
+        "battery",
+        "camera",
+    ]
     assert aspects_repo.count(analysis) == 4
     assert aspects_repo.count(analysis, aspect="battery") == 1
-    assert aspects_repo.count(analysis, aspect="battery", sentiment=Sentiment.negative) == 1
-    assert aspects_repo.count(analysis, aspect="battery", sentiment=Sentiment.positive) == 0
-    assert aspects_repo.count(analysis, sentiment=Sentiment.positive) == 2  # camera, display
+    assert (
+        aspects_repo.count(analysis, aspect="battery", sentiment=Sentiment.negative)
+        == 1
+    )
+    assert (
+        aspects_repo.count(analysis, aspect="battery", sentiment=Sentiment.positive)
+        == 0
+    )
+    assert (
+        aspects_repo.count(analysis, sentiment=Sentiment.positive) == 2
+    )  # camera, display
     assert aspects_repo.count(analysis, brand_id=uuid.uuid4()) == 0
     assert aspects_repo.count(analysis, window=WindowKind.baseline) == 0
     listed = aspects_repo.list_for_analysis(analysis, aspect="battery")
@@ -237,7 +267,9 @@ def test_aspect_repository_queries(repo, aspects_repo, content, stored, analysis
         (ids["pro"], "battery life is terrible")
     ]
     ordered = aspects_repo.list_for_analysis(analysis)
-    assert [r.aspect.aspect for r in ordered] == sorted(r.aspect.aspect for r in ordered)
+    assert [r.aspect.aspect for r in ordered] == sorted(
+        r.aspect.aspect for r in ordered
+    )
 
 
 def test_aspect_repository_window_filter(repo, aspects_repo, content, analysis, brand):
@@ -245,7 +277,9 @@ def test_aspect_repository_window_filter(repo, aspects_repo, content, analysis, 
     baseline = make_item("price", "5", window=WindowKind.baseline)
     ids = content.add_many(analysis, brand, [current, baseline]).inserted_ids
     repo.save_many(
-        analyze_stored(dict(zip(("pro", "price"), ids, strict=True)), [current, baseline])
+        analyze_stored(
+            dict(zip(("pro", "price"), ids, strict=True)), [current, baseline]
+        )
     )
     assert aspects_repo.count(analysis, window=WindowKind.current) == 2
     assert aspects_repo.count(analysis, window=WindowKind.baseline) == 2
@@ -271,7 +305,11 @@ def test_aspect_repository_add_many_skips_existing_pairs(aspects_repo, stored):
 
 def test_aspect_rows_need_a_content_item(aspects_repo):
     aspect = AspectSentiment(
-        aspect="battery", clause="c", sentiment=Sentiment.neutral, negative_prob=0.1, score=0.0
+        aspect="battery",
+        clause="c",
+        sentiment=Sentiment.neutral,
+        negative_prob=0.1,
+        score=0.0,
     )
     with pytest.raises(IntegrityError):
         aspects_repo.add_many(uuid.uuid4(), [aspect])
@@ -293,13 +331,21 @@ def test_deleting_the_analysis_removes_nlp_rows(
 
 
 def run_stage(
-    repo, content, analysis, brand, analyzer, profile=SAMSUNG, category="consumer_electronics"
+    repo,
+    content,
+    analysis,
+    brand,
+    analyzer,
+    profile=SAMSUNG,
+    category="consumer_electronics",
 ):
     """What an analyzing stage will do: skip analyzed items, copy reusable results, run
     inference for the rest. Returns (copied ids, ReuseResult) for assertions."""
     version = analyzer_version_for(analyzer, category)
     items = content.list_for_analysis(analysis, brand_id=brand)
-    pending = [i for i in items if i.id not in repo.analyzed_content_ids(x.id for x in items)]
+    pending = [
+        i for i in items if i.id not in repo.analyzed_content_ids(x.id for x in items)
+    ]
     relevant, irrelevant = [], []
     for item in pending:
         (
@@ -311,7 +357,10 @@ def run_stage(
     rows = []
     if irrelevant:  # relevance only, no inference
         analyses = analyze_items(
-            [ItemText(i.title, i.snippet) for i in irrelevant], profile, analyzer, category
+            [ItemText(i.title, i.snippet) for i in irrelevant],
+            profile,
+            analyzer,
+            category,
         )
         rows += [
             NewItemAnalysis(content_id=i.id, content_hash=i.content_hash, analysis=a)
@@ -357,7 +406,14 @@ def both(content, analysis, second_analysis, brand):
 
 def comparable(stored):
     a = stored.analysis
-    return (a.sentiment, a.sentiment_score, a.negative_prob, a.model, a.analyzer_version, a.aspects)
+    return (
+        a.sentiment,
+        a.sentiment_score,
+        a.negative_prob,
+        a.model,
+        a.analyzer_version,
+        a.aspects,
+    )
 
 
 def test_first_run_scores_and_second_run_of_same_analysis_scores_nothing(
@@ -390,7 +446,9 @@ def test_same_texts_in_another_analysis_are_copied_with_zero_inference(
         original = first_rows[content_hash]
         assert copied.content_id != original.content_id
         assert comparable(copied) == comparable(original)
-        if copied.analysis.is_about_brand:  # copied, not recomputed: keeps when inference ran
+        if (
+            copied.analysis.is_about_brand
+        ):  # copied, not recomputed: keeps when inference ran
             assert copied.analyzed_at == original.analyzed_at
     assert len(repo.get_many([r.content_id for r in second_rows.values()])) == 3
 
@@ -410,18 +468,26 @@ def test_a_different_analyzer_version_is_not_reused(
     renamed = CountingAnalyzer()
     renamed.model_name = "stub-lexicon-v2"
     other_model = run_stage(repo, content, second_analysis, brand, renamed)
-    assert other_model.reused == ()  # second_analysis rows already exist -> nothing pending
+    assert (
+        other_model.reused == ()
+    )  # second_analysis rows already exist -> nothing pending
     assert other_model.already_analyzed == ()
 
 
-def test_a_different_category_is_not_reused(repo, content, both, analysis, second_analysis, brand):
+def test_a_different_category_is_not_reused(
+    repo, content, both, analysis, second_analysis, brand
+):
     run_stage(repo, content, analysis, brand, CountingAnalyzer())
     generic = CountingAnalyzer()
-    reuse = run_stage(repo, content, second_analysis, brand, generic, category="generic")
+    reuse = run_stage(
+        repo, content, second_analysis, brand, generic, category="generic"
+    )
     assert reuse.reused == () and generic.scored > 0
 
 
-def test_only_new_texts_are_scored(repo, content, both, analysis, second_analysis, brand):
+def test_only_new_texts_are_scored(
+    repo, content, both, analysis, second_analysis, brand
+):
     run_stage(repo, content, analysis, brand, CountingAnalyzer())
     extra = make_item("pro", "6")
     extra = extra.model_copy(
@@ -433,7 +499,9 @@ def test_only_new_texts_are_scored(repo, content, both, analysis, second_analysi
     assert len(reuse.reused) == 2 and len(reuse.missing) == 1
     assert all("Pizza" not in t for call in analyzer.calls for t in call)
     assert any("stunning" in t for call in analyzer.calls for t in call)
-    assert not any("battery life is terrible" in t for call in analyzer.calls for t in call)
+    assert not any(
+        "battery life is terrible" in t for call in analyzer.calls for t in call
+    )
 
 
 def test_relevance_is_decided_per_brand_not_copied(
@@ -448,14 +516,19 @@ def test_relevance_is_decided_per_brand_not_copied(
     original = {s.content_hash: s for s in repo.list_for_analysis(analysis)}
     pro = "1" * 64
     assert original[pro].analysis.matched_terms == ("Samsung",)
-    assert copied[pro].analysis.matched_terms == ("Samsung", "S25")  # the caller's own terms
+    assert copied[pro].analysis.matched_terms == (
+        "Samsung",
+        "S25",
+    )  # the caller's own terms
     assert copied[pro].analysis.is_about_brand
 
 
 def test_a_source_that_was_not_about_its_brand_is_never_reused(
     repo, content, both, analysis, second_analysis, brand
 ):
-    apple = BrandProfile("Apple")  # the Samsung texts are irrelevant to Apple: no inference ran
+    apple = BrandProfile(
+        "Apple"
+    )  # the Samsung texts are irrelevant to Apple: no inference ran
     quiet = CountingAnalyzer()
     run_stage(repo, content, analysis, brand, quiet, profile=apple)
     assert quiet.calls == []
@@ -472,13 +545,21 @@ def test_copy_reusable_classifies_every_target(
 ):
     run_stage(repo, content, analysis, brand, CountingAnalyzer())
     version = analyzer_version_for(CountingAnalyzer())
-    pro_a = next(i for i in content.list_for_analysis(analysis) if i.content_hash == "1" * 64)
-    pro_b = next(
-        i for i in content.list_for_analysis(second_analysis) if i.content_hash == "1" * 64
+    pro_a = next(
+        i for i in content.list_for_analysis(analysis) if i.content_hash == "1" * 64
     )
-    new_b = content.add_many(second_analysis, brand, [make_item("price", "7")]).inserted_ids[0]
+    pro_b = next(
+        i
+        for i in content.list_for_analysis(second_analysis)
+        if i.content_hash == "1" * 64
+    )
+    new_b = content.add_many(
+        second_analysis, brand, [make_item("price", "7")]
+    ).inserted_ids[0]
     targets = [
-        ReuseTarget(content_id=pro_a.id, content_hash=pro_a.content_hash),  # already analyzed
+        ReuseTarget(
+            content_id=pro_a.id, content_hash=pro_a.content_hash
+        ),  # already analyzed
         ReuseTarget(content_id=pro_b.id, content_hash=pro_b.content_hash),  # reusable
         ReuseTarget(content_id=new_b, content_hash="7" * 64),  # no source
     ]
@@ -497,7 +578,9 @@ def test_find_reusable_picks_the_earliest_source_and_filters_version(
     repo, content, both, analysis, second_analysis, brand
 ):
     run_stage(repo, content, analysis, brand, CountingAnalyzer())
-    run_stage(repo, content, second_analysis, brand, CountingAnalyzer())  # copies keep analyzed_at
+    run_stage(
+        repo, content, second_analysis, brand, CountingAnalyzer()
+    )  # copies keep analyzed_at
     version = analyzer_version_for(CountingAnalyzer())
     found = repo.find_reusable(["1" * 64, "2" * 64, "3" * 64, "9" * 64], version)
     assert set(found) == {"1" * 64, "2" * 64}  # "3" is not about the brand, "9" unknown

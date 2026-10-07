@@ -24,7 +24,12 @@ WINDOWS = WindowSet(
     baseline_start=date(2026, 6, 12),
     baseline_end=date(2026, 7, 11),
 )
-ENGINES = [SerpEngine.google, SerpEngine.google_news, SerpEngine.google_forums, SerpEngine.youtube]
+ENGINES = [
+    SerpEngine.google,
+    SerpEngine.google_news,
+    SerpEngine.google_forums,
+    SerpEngine.youtube,
+]
 
 
 @pytest.fixture
@@ -52,13 +57,17 @@ def items(stored_raw, fixture_raw_items, analysis, brand) -> list[ContentItem]:
     return process_raw_items(raws, windows=WINDOWS).items
 
 
-def test_every_processed_fixture_item_round_trips_losslessly(repo, analysis, brand, items):
+def test_every_processed_fixture_item_round_trips_losslessly(
+    repo, analysis, brand, items
+):
     result = repo.add_many(analysis, brand, items)
     assert (result.inserted, result.duplicates) == (len(items), 0)
     assert len(result.inserted_ids) == len(items) == 14
 
     stored = repo.list_for_analysis(analysis)
-    assert len(stored) == len(items) and all(isinstance(s, StoredContentItem) for s in stored)
+    assert len(stored) == len(items) and all(
+        isinstance(s, StoredContentItem) for s in stored
+    )
     by_hash = {s.content_hash: s for s in stored}
     for item in items:
         row = by_hash[item.content_hash]
@@ -73,9 +82,12 @@ def test_dates_confidence_and_windows_survive_storage(repo, analysis, brand, ite
     assert sum(s.date_confidence is DateConfidence.exact for s in stored) == 6
     assert sum(s.date_confidence is DateConfidence.approximate for s in stored) == 4
     assert all(
-        (s.published_at is None) == (s.date_confidence is DateConfidence.unknown) for s in stored
+        (s.published_at is None) == (s.date_confidence is DateConfidence.unknown)
+        for s in stored
     )
-    assert all(s.published_at is None or s.published_at.tzinfo is not None for s in stored)
+    assert all(
+        s.published_at is None or s.published_at.tzinfo is not None for s in stored
+    )
     assert repo.count(analysis, window=WindowKind.baseline) == 1
     assert repo.count(analysis, window=WindowKind.current) == 13
 
@@ -123,8 +135,12 @@ def test_filters_count_and_order(repo, new_brand, analysis, brand, items):
     assert repo.count(analysis) == len(items) + 3
     assert repo.count(analysis, brand_id=apple) == 3
     assert repo.count(analysis, brand_id=brand, source_type=SourceType.news) == 5
-    assert repo.count(analysis, brand_id=brand, purpose=ContentPurpose.investigation) == 0
-    rows = repo.list_for_analysis(analysis, brand_id=brand, source_type=SourceType.youtube)
+    assert (
+        repo.count(analysis, brand_id=brand, purpose=ContentPurpose.investigation) == 0
+    )
+    rows = repo.list_for_analysis(
+        analysis, brand_id=brand, source_type=SourceType.youtube
+    )
     assert {r.source_type for r in rows} == {SourceType.youtube} and len(rows) == 3
     everything = repo.list_for_analysis(analysis)
     assert everything == repo.list_for_analysis(analysis)
@@ -141,8 +157,12 @@ def test_hash_checks(repo, new_brand, analysis, brand, items):
     assert repo.existing_content_hashes(analysis, brand, content) == {
         i.content_hash for i in stored
     }
-    assert repo.existing_url_hashes(analysis, brand, urls) == {i.url_hash for i in stored}
-    assert not repo.existing_content_hashes(analysis, brand, [i.content_hash for i in absent])
+    assert repo.existing_url_hashes(analysis, brand, urls) == {
+        i.url_hash for i in stored
+    }
+    assert not repo.existing_content_hashes(
+        analysis, brand, [i.content_hash for i in absent]
+    )
     assert repo.existing_content_hashes(analysis, brand, []) == set()
     assert repo.existing_url_hashes(analysis, brand, []) == set()
     assert not repo.existing_content_hashes(analysis, new_brand("Apple"), content)
@@ -153,7 +173,9 @@ def test_hash_checks(repo, new_brand, analysis, brand, items):
 
 def test_count_dup_groups_counts_independent_sources(repo, analysis, brand, items):
     a = items[0]
-    b = a.model_copy(update={"content_hash": "d" * 64, "url_hash": "e" * 64})  # same dup_group
+    b = a.model_copy(
+        update={"content_hash": "d" * 64, "url_hash": "e" * 64}
+    )  # same dup_group
     c = items[1]
     repo.add_many(analysis, brand, [a, b, c])
     assert repo.count(analysis) == 3
@@ -166,7 +188,11 @@ def test_investigation_item_without_window_is_stored(repo, analysis, brand, item
         update={"purpose": ContentPurpose.investigation, "window": None}
     )
     stored, created = repo.add(analysis, brand, investigation)
-    assert created and stored.purpose is ContentPurpose.investigation and stored.window is None
+    assert (
+        created
+        and stored.purpose is ContentPurpose.investigation
+        and stored.window is None
+    )
 
 
 def test_a_batch_is_all_or_nothing(repo, analysis, brand, items):

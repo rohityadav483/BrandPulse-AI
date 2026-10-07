@@ -98,7 +98,9 @@ def find_exact_duplicates(
     live: list[int] = []
     for index, item in enumerate(items):
         if item.content_hash in known_content or item.url_hash in known_urls:
-            dropped.append(DroppedDuplicate(index=index, reason=DropReason.already_stored))
+            dropped.append(
+                DroppedDuplicate(index=index, reason=DropReason.already_stored)
+            )
         else:
             live.append(index)
 
@@ -107,7 +109,10 @@ def find_exact_duplicates(
     first_by_url: dict[str, int] = {}
     for index in live:
         item = items[index]
-        for table, key in ((first_by_content, item.content_hash), (first_by_url, item.url_hash)):
+        for table, key in (
+            (first_by_content, item.content_hash),
+            (first_by_url, item.url_hash),
+        ):
             if key in table:
                 sets.union(index, table[key])
             else:
@@ -125,7 +130,11 @@ def find_exact_duplicates(
             if index == winner:
                 continue
             same_text = items[index].content_hash == items[winner].content_hash
-            reason = DropReason.duplicate_content_hash if same_text else DropReason.duplicate_url
+            reason = (
+                DropReason.duplicate_content_hash
+                if same_text
+                else DropReason.duplicate_url
+            )
             dropped.append(DroppedDuplicate(index=index, reason=reason))
     kept.sort()
     dropped.sort(key=lambda d: d.index)

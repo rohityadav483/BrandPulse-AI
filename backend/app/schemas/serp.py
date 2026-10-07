@@ -14,7 +14,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.schemas.domain import BlockedReason, BrandRole, ContentPurpose, SourceType, WindowKind
+from app.schemas.domain import (
+    BlockedReason,
+    BrandRole,
+    ContentPurpose,
+    SourceType,
+    WindowKind,
+)
 
 ParamValue = str | int | float | bool
 

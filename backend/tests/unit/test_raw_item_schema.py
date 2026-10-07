@@ -33,8 +33,12 @@ ANALYSIS, BRAND = uuid.uuid4(), uuid.uuid4()
 def parsed_items(engine: SerpEngine) -> list[RawItem]:
     param = "search_query" if engine is SerpEngine.youtube else "q"
     spec = QuerySpec(engine=engine, params={param: "Samsung Galaxy S25 Ultra"})
-    response = json.loads((FIXTURES / CONTENT_FIXTURES[engine]).read_text(encoding="utf-8"))
-    return parse_response(spec, response, cache_key=cache_key(spec.engine, spec.params)).items
+    response = json.loads(
+        (FIXTURES / CONTENT_FIXTURES[engine]).read_text(encoding="utf-8")
+    )
+    return parse_response(
+        spec, response, cache_key=cache_key(spec.engine, spec.params)
+    ).items
 
 
 def make(**overrides) -> RawItem:
@@ -67,8 +71,15 @@ def test_every_content_engine_fixture_yields_valid_raw_items(engine):
 
 
 def test_raw_items_from_all_engines_cover_the_four_content_source_types():
-    seen = {item.source_type for engine in CONTENT_FIXTURES for item in parsed_items(engine)}
-    assert seen == {SourceType.web, SourceType.news, SourceType.forum, SourceType.youtube}
+    seen = {
+        item.source_type for engine in CONTENT_FIXTURES for item in parsed_items(engine)
+    }
+    assert seen == {
+        SourceType.web,
+        SourceType.news,
+        SourceType.forum,
+        SourceType.youtube,
+    }
 
 
 @pytest.mark.parametrize("engine", list(CONTENT_FIXTURES))
@@ -116,7 +127,9 @@ def test_position_must_be_positive(position):
 
 
 def test_validation_never_modifies_values():
-    item = make(title="  Padded Title \n", url=" HTTPS://Example.TEST/A?utm=1 ", snippet="  ")
+    item = make(
+        title="  Padded Title \n", url=" HTTPS://Example.TEST/A?utm=1 ", snippet="  "
+    )
     assert item.title == "  Padded Title \n"
     assert item.url == " HTTPS://Example.TEST/A?utm=1 "
     assert item.snippet == "  "
@@ -129,7 +142,9 @@ def test_optional_fields_default_to_none_or_empty():
         title="t",
         url="https://a.example.test",
     )
-    assert item.snippet is item.author is item.published_raw is item.published_iso is None
+    assert (
+        item.snippet is item.author is item.published_raw is item.published_iso is None
+    )
     assert item.position is item.query is item.serp_cache_key is None
     assert item.metadata == {}
 
@@ -146,7 +161,9 @@ def test_raw_key_is_deterministic():
     [
         {"title": "Galaxy S25 Ultra review!"},
         {"url": "https://reviews.example.test/s25/"},
-        {"url": "https://REVIEWS.example.test/s25"},  # no canonicalisation: case matters
+        {
+            "url": "https://REVIEWS.example.test/s25"
+        },  # no canonicalisation: case matters
         {"snippet": "Battery drains fast"},
         {"snippet": None},
         {"published_raw": "4 weeks ago"},
@@ -161,7 +178,9 @@ def test_raw_key_changes_when_any_identifying_field_changes(change):
     assert make(**change).compute_raw_key() != make().compute_raw_key()
 
 
-@pytest.mark.parametrize("change", [{"author": "Someone Else"}, {"metadata": {"views": 5}}])
+@pytest.mark.parametrize(
+    "change", [{"author": "Someone Else"}, {"metadata": {"views": 5}}]
+)
 def test_raw_key_ignores_author_and_metadata(change):
     assert make(**change).compute_raw_key() == make().compute_raw_key()
 
@@ -177,7 +196,9 @@ def test_raw_key_distinguishes_none_from_empty_string():
 
 
 def test_raw_key_handles_non_ascii():
-    assert make(title="Galaxy – 배터리 🔋").compute_raw_key() != make().compute_raw_key()
+    assert (
+        make(title="Galaxy – 배터리 🔋").compute_raw_key() != make().compute_raw_key()
+    )
 
 
 # ---------- RawItemContext ----------
@@ -186,12 +207,16 @@ def test_raw_key_handles_non_ascii():
 def test_collection_context_requires_window():
     with pytest.raises(ValidationError, match="need a window"):
         RawItemContext(analysis_id=ANALYSIS, brand_id=BRAND)
-    ctx = RawItemContext(analysis_id=ANALYSIS, brand_id=BRAND, window=WindowKind.current)
+    ctx = RawItemContext(
+        analysis_id=ANALYSIS, brand_id=BRAND, window=WindowKind.current
+    )
     assert ctx.purpose is ContentPurpose.collection and ctx.collected_at is None
 
 
 def test_investigation_context_has_no_window():
-    ctx = RawItemContext(analysis_id=ANALYSIS, brand_id=BRAND, purpose=ContentPurpose.investigation)
+    ctx = RawItemContext(
+        analysis_id=ANALYSIS, brand_id=BRAND, purpose=ContentPurpose.investigation
+    )
     assert ctx.window is None
     with pytest.raises(ValidationError, match="no window"):
         RawItemContext(
@@ -203,7 +228,9 @@ def test_investigation_context_has_no_window():
 
 
 def test_context_is_frozen():
-    ctx = RawItemContext(analysis_id=ANALYSIS, brand_id=BRAND, window=WindowKind.current)
+    ctx = RawItemContext(
+        analysis_id=ANALYSIS, brand_id=BRAND, window=WindowKind.current
+    )
     with pytest.raises(ValidationError):
         ctx.window = WindowKind.baseline
 

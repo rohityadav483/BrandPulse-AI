@@ -23,9 +23,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
-DEFAULT_DATASET = ROOT / "backend" / "tests" / "fixtures" / "nlp" / "sentiment_eval_v1.json"
+DEFAULT_DATASET = (
+    ROOT / "backend" / "tests" / "fixtures" / "nlp" / "sentiment_eval_v1.json"
+)
 DEFAULT_MARGINS = (0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40)
-MIN_ACCURACY = 0.75  # docs/DEVELOPMENT_PLAN.md Phase 4 "Done when" (suggested thresholds)
+MIN_ACCURACY = (
+    0.75  # docs/DEVELOPMENT_PLAN.md Phase 4 "Done when" (suggested thresholds)
+)
 MIN_MACRO_F1 = 0.70
 
 
@@ -33,15 +37,27 @@ def _parse(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--analyzer", choices=("stub", "hf"), default="stub")
-    parser.add_argument("--model-id", default=None, help="default: Settings.sentiment_model")
+    parser.add_argument(
+        "--model-id", default=None, help="default: Settings.sentiment_model"
+    )
     parser.add_argument("--cache-dir", default=None, help="default: Settings.hf_home")
-    parser.add_argument("--local-files-only", action="store_true", help="never touch the network")
+    parser.add_argument(
+        "--local-files-only", action="store_true", help="never touch the network"
+    )
     parser.add_argument("--neutral-margin", type=float, default=0.15)
-    parser.add_argument("--sweep", action="store_true", help="compare margins (hf only)")
-    parser.add_argument("--margins", type=float, nargs="+", default=list(DEFAULT_MARGINS))
-    parser.add_argument("--show-errors", action="store_true", help="list misclassified items")
+    parser.add_argument(
+        "--sweep", action="store_true", help="compare margins (hf only)"
+    )
+    parser.add_argument(
+        "--margins", type=float, nargs="+", default=list(DEFAULT_MARGINS)
+    )
+    parser.add_argument(
+        "--show-errors", action="store_true", help="list misclassified items"
+    )
     parser.add_argument("--json-out", type=Path, default=None)
-    parser.add_argument("--enforce", action="store_true", help="exit 1 below the thresholds")
+    parser.add_argument(
+        "--enforce", action="store_true", help="exit 1 below the thresholds"
+    )
     parser.add_argument("--min-accuracy", type=float, default=MIN_ACCURACY)
     parser.add_argument("--min-macro-f1", type=float, default=MIN_MACRO_F1)
     return parser.parse_args(argv)
@@ -69,8 +85,10 @@ def _confusion_text(report) -> str:
 
 def _report_text(title: str, report) -> str:
     lines = [
-        f"{title}: n={report.total}  accuracy={report.accuracy:.4f}  "
-        f"macro_f1={report.macro_f1:.4f}",
+        (
+            f"{title}: n={report.total}  accuracy={report.accuracy:.4f}  "
+            f"macro_f1={report.macro_f1:.4f}"
+        ),
         f"  {'class':<10}{'precision':>10}{'recall':>10}{'f1':>10}{'support':>9}",
     ]
     for label, m in report.per_class.items():
@@ -168,15 +186,21 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.analyzer == "hf":
             started = time.perf_counter()
-            analyzer.analyze(["warm up"])  # loads the model (and downloads it if missing)
+            analyzer.analyze(
+                ["warm up"]
+            )  # loads the model (and downloads it if missing)
             timing["cold_start_seconds"] = round(time.perf_counter() - started, 3)
         started = time.perf_counter()
         outcomes = evaluation.run_analyzer(dataset, analyzer)
         elapsed = time.perf_counter() - started
     except ModelUnavailableError as exc:
         print(f"REAL MODEL NOT AVAILABLE: {exc}")
-        print("Nothing was evaluated. Install torch + transformers and make the model reachable")
-        print("(pip install -e '.[nlp]'; first run needs the Hugging Face hub or a populated")
+        print(
+            "Nothing was evaluated. Install torch + transformers and make the model reachable"
+        )
+        print(
+            "(pip install -e '.[nlp]'; first run needs the Hugging Face hub or a populated"
+        )
         print("HF_HOME), then rerun with --analyzer hf.")
         return 2
 
@@ -191,7 +215,9 @@ def main(argv: list[str] | None = None) -> int:
     report = evaluation.score(outcomes, margin=margin)
 
     model = getattr(analyzer, "model_name", args.analyzer)
-    print(f"dataset: {dataset.name} v{dataset.version} ({len(dataset.items)} items) {args.dataset}")
+    print(
+        f"dataset: {dataset.name} v{dataset.version} ({len(dataset.items)} items) {args.dataset}"
+    )
     print(f"analyzer: {args.analyzer}  model: {model}  neutral_margin: {margin}")
     print()
     print(_report_text("overall sentiment", report.overall))
@@ -206,7 +232,11 @@ def main(argv: list[str] | None = None) -> int:
         print("  missed: " + ", ".join(detection.missed))
     if report.aspect_sentiment:
         print()
-        print(_report_text("aspect sentiment (annotated and detected)", report.aspect_sentiment))
+        print(
+            _report_text(
+                "aspect sentiment (annotated and detected)", report.aspect_sentiment
+            )
+        )
     print()
     print("timing: " + json.dumps(timing))
 
@@ -226,11 +256,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.sweep:
         swept = evaluation.sweep(outcomes, args.margins)
         print()
-        print("neutral margin sweep (overall sentiment; aspect clauses relabeled the same way)")
-        print(f"  {'margin':>7}{'accuracy':>10}{'macro_f1':>10}{'asp_acc':>9}{'neutral_pred':>14}")
+        print(
+            "neutral margin sweep (overall sentiment; aspect clauses relabeled the same way)"
+        )
+        print(
+            f"  {'margin':>7}{'accuracy':>10}{'macro_f1':>10}{'asp_acc':>9}{'neutral_pred':>14}"
+        )
         for value, swept_report in swept:
             aspect = swept_report.aspect_sentiment
-            neutral_pred = sum(row["neutral"] for row in swept_report.overall.confusion.values())
+            neutral_pred = sum(
+                row["neutral"] for row in swept_report.overall.confusion.values()
+            )
             print(
                 f"  {value:>7.2f}{swept_report.overall.accuracy:>10.4f}"
                 f"{swept_report.overall.macro_f1:>10.4f}"
@@ -239,7 +275,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.json_out:
         payload = {
-            "dataset": {"name": dataset.name, "version": dataset.version, "n": len(dataset.items)},
+            "dataset": {
+                "name": dataset.name,
+                "version": dataset.version,
+                "n": len(dataset.items),
+            },
             "analyzer": args.analyzer,
             "model": model,
             "timing": timing,
@@ -251,7 +291,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {args.json_out}")
 
     if args.enforce and (
-        report.overall.accuracy < args.min_accuracy or report.overall.macro_f1 < args.min_macro_f1
+        report.overall.accuracy < args.min_accuracy
+        or report.overall.macro_f1 < args.min_macro_f1
     ):
         print(
             f"BELOW THRESHOLD: need accuracy >= {args.min_accuracy} and "

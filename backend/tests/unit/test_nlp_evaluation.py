@@ -93,7 +93,8 @@ def test_dataset_size_labels_and_provenance():
     assert min(counts.values()) >= 10
     assert len({item.id for item in dataset.items}) == len(dataset.items)
     assert all(
-        item.source == "handwritten" or item.source.startswith("fixture:") for item in dataset.items
+        item.source == "handwritten" or item.source.startswith("fixture:")
+        for item in dataset.items
     )
     assert sum(1 for item in dataset.items if item.source.startswith("fixture:")) >= 3
     assert sum(1 for item in dataset.items if item.aspects) >= 20
@@ -101,7 +102,11 @@ def test_dataset_size_labels_and_provenance():
 
 def test_dataset_contains_the_prd_camera_battery_case():
     dataset = load_dataset(DATASET)
-    case = [i for i in dataset.items if i.aspects == {"camera": "positive", "battery": "negative"}]
+    case = [
+        i
+        for i in dataset.items
+        if i.aspects == {"camera": "positive", "battery": "negative"}
+    ]
     assert case
 
 
@@ -180,14 +185,20 @@ def test_run_analyzer_uses_one_call_and_the_production_text_and_clauses():
     analyzer = Counting()
     (outcome,) = run_analyzer(_dataset(item), analyzer)
     assert len(analyzer.calls) == 1
-    assert analyzer.calls[0][0] == "S25 Ultra. The camera is amazing but battery life is terrible"
+    assert (
+        analyzer.calls[0][0]
+        == "S25 Ultra. The camera is amazing but battery life is terrible"
+    )
     assert [a.aspect for a in outcome.aspects] == ["camera", "battery"]
     assert [a.clause for a in outcome.aspects] == [
         "The camera is amazing",
         "battery life is terrible",
     ]
     assert outcome.missed_aspects == ("audio",)
-    assert [a.result.label for a in outcome.aspects] == [Sentiment.positive, Sentiment.negative]
+    assert [a.result.label for a in outcome.aspects] == [
+        Sentiment.positive,
+        Sentiment.negative,
+    ]
 
 
 def test_score_aspect_detection_and_sentiment_counts():
@@ -200,7 +211,14 @@ def test_score_aspect_detection_and_sentiment_counts():
             "neutral",
             {"camera": "positive", "battery": "negative", "audio": "positive"},
         ),
-        EvalItem("b", "S", "S25", "Great display, awful price", "neutral", {"display": "positive"}),
+        EvalItem(
+            "b",
+            "S",
+            "S25",
+            "Great display, awful price",
+            "neutral",
+            {"display": "positive"},
+        ),
     )
     report = score(run_analyzer(_dataset(*items), StubSentimentAnalyzer()))
     detection = report.aspect_detection
@@ -218,11 +236,14 @@ def test_score_aspect_detection_and_sentiment_counts():
 def test_score_without_annotated_aspects_has_no_aspect_sentiment():
     report = score(
         run_analyzer(
-            _dataset(EvalItem("a", "S", "S25", "great", "positive")), StubSentimentAnalyzer()
+            _dataset(EvalItem("a", "S", "S25", "great", "positive")),
+            StubSentimentAnalyzer(),
         )
     )
     assert report.aspect_sentiment is None
-    assert report.aspect_detection.expected == 0 and report.aspect_detection.recall == 0.0
+    assert (
+        report.aspect_detection.expected == 0 and report.aspect_detection.recall == 0.0
+    )
 
 
 def test_misclassified_items_are_listed_with_probabilities():
@@ -262,7 +283,9 @@ def test_relabel_equals_an_analyzer_built_with_that_margin(margin):
 
     def build(model_id, neutral_margin):
         return HFSentimentAnalyzer(
-            model_id, neutral_margin=neutral_margin, classifier_factory=lambda _c: _Probs(rows)
+            model_id,
+            neutral_margin=neutral_margin,
+            classifier_factory=lambda _c: _Probs(rows),
         )
 
     raw = build("org/raw", 0.0).analyze(texts)
@@ -274,9 +297,11 @@ def test_relabel_keeps_probabilities_and_validates_margin():
     result = SentimentResult(Sentiment.positive, 0.5, 0.3, 0.2)
     again = relabel(result, 0.5)
     assert again.label is Sentiment.neutral
-    assert (again.positive_prob, again.neutral_prob, again.negative_prob) == pytest.approx(
-        (0.5, 0.3, 0.2)
-    )
+    assert (
+        again.positive_prob,
+        again.neutral_prob,
+        again.negative_prob,
+    ) == pytest.approx((0.5, 0.3, 0.2))
     for bad in (-0.1, 1.0):
         with pytest.raises(ValueError):
             relabel(result, bad)
@@ -316,7 +341,12 @@ def test_script_runs_with_the_stub_and_writes_json(tmp_path, capsys):
     out = tmp_path / "eval.json"
     assert load_script().main(["--json-out", str(out), "--show-errors"]) == 0
     printed = capsys.readouterr().out
-    for needle in ("accuracy=", "macro_f1=", "confusion matrix", "aspect detection: recall="):
+    for needle in (
+        "accuracy=",
+        "macro_f1=",
+        "confusion matrix",
+        "aspect detection: recall=",
+    ):
         assert needle in printed
     payload = json.loads(out.read_text())
     assert payload["analyzer"] == "stub" and payload["dataset"]["n"] == len(
@@ -324,7 +354,10 @@ def test_script_runs_with_the_stub_and_writes_json(tmp_path, capsys):
     )
     overall = payload["report"]["overall"]
     assert set(overall["per_class"]) == {"negative", "neutral", "positive"}
-    assert sum(sum(row.values()) for row in overall["confusion"].values()) == overall["total"]
+    assert (
+        sum(sum(row.values()) for row in overall["confusion"].values())
+        == overall["total"]
+    )
 
 
 def test_script_numbers_match_the_library(tmp_path):
@@ -341,7 +374,9 @@ def test_script_sweep_needs_the_real_model(capsys):
     assert "--analyzer hf" in capsys.readouterr().out
 
 
-def test_script_reports_an_unavailable_real_model_without_inventing_numbers(monkeypatch, capsys):
+def test_script_reports_an_unavailable_real_model_without_inventing_numbers(
+    monkeypatch, capsys
+):
     import sys
 
     monkeypatch.setitem(sys.modules, "torch", None)  # `import torch` raises ImportError
@@ -354,7 +389,10 @@ def test_script_reports_an_unavailable_real_model_without_inventing_numbers(monk
 def test_script_enforce_fails_below_thresholds(capsys):
     assert load_script().main(["--enforce", "--min-accuracy", "1.01"]) == 1
     assert "BELOW THRESHOLD" in capsys.readouterr().out
-    assert load_script().main(["--enforce", "--min-accuracy", "0", "--min-macro-f1", "0"]) == 0
+    assert (
+        load_script().main(["--enforce", "--min-accuracy", "0", "--min-macro-f1", "0"])
+        == 0
+    )
 
 
 def test_script_rejects_a_bad_margin(capsys):

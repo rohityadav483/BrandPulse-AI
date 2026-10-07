@@ -74,18 +74,24 @@ def test_wrong_method_is_405(make_client):
 
 
 def test_http_exception_is_wrapped(make_client):
-    err = _assert_envelope(_client(make_client).get("/t/http-error"), 403, "bad_request")
+    err = _assert_envelope(
+        _client(make_client).get("/t/http-error"), 403, "bad_request"
+    )
     assert err["message"] == "Nope."
 
 
 def test_query_validation_error(make_client):
-    err = _assert_envelope(_client(make_client).get("/t/query?n=abc"), 422, "validation_error")
+    err = _assert_envelope(
+        _client(make_client).get("/t/query?n=abc"), 422, "validation_error"
+    )
     assert err["message"] == "Request validation failed."
     assert err["details"]["fields"][0]["field"] == "n"
 
 
 def test_body_validation_error_lists_fields_and_hides_input(make_client):
-    res = _client(make_client).post("/t/body", json={"name": "x", "count": "TOP-SECRET-INPUT"})
+    res = _client(make_client).post(
+        "/t/body", json={"name": "x", "count": "TOP-SECRET-INPUT"}
+    )
     err = _assert_envelope(res, 422, "validation_error")
     assert [f["field"] for f in err["details"]["fields"]] == ["count"]
     assert "TOP-SECRET-INPUT" not in res.text
@@ -110,7 +116,9 @@ def test_unexpected_exception_is_500_and_never_leaks(make_client, capsys):
     assert err["message"] == "An unexpected error occurred."
     assert "db-password" not in res.text and "RuntimeError" not in res.text
     # Logged server-side as a JSON line with traceback and request id.
-    lines = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith("{")]
+    lines = [
+        json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith("{")
+    ]
     failed = [x for x in lines if x["message"] == "request_failed"]
     assert failed and "RuntimeError" in failed[0]["exception"]
     assert failed[0]["request_id"] and failed[0]["path"] == "/t/boom"

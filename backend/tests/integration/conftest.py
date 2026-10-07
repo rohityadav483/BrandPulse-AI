@@ -10,11 +10,11 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
+from alembic import command
 from app.db.session import normalize_url
 
 ADMIN_URL = os.environ.get("TEST_DATABASE_URL")
@@ -56,7 +56,9 @@ def new_brand(migrated_engine):
     def _make(name: str = "Samsung") -> uuid.UUID:
         with migrated_engine.begin() as conn:
             return conn.execute(
-                text("INSERT INTO brands (name, normalized_name) VALUES (:n, :nn) RETURNING id"),
+                text(
+                    "INSERT INTO brands (name, normalized_name) VALUES (:n, :nn) RETURNING id"
+                ),
                 {"n": name, "nn": name.lower()},
             ).scalar_one()
 

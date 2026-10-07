@@ -32,16 +32,18 @@ _UNIT_SECONDS = {
     "year": 365 * 86400,
 }
 _NUMBER_WORDS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
-_PREFIX = re.compile(r"^(?:streamed|premiered|updated|posted|published|reviewed)\s+", re.I)
+_PREFIX = re.compile(
+    r"^(?:streamed|premiered|updated|posted|published|reviewed)\s+", re.IGNORECASE
+)
 _RELATIVE = re.compile(
     r"^(?P<n>\d+|a|an|one|two|three|four|five)\s*\+?\s*"
     r"(?P<unit>second|minute|hour|day|week|month|year)s?\s+ago$",
-    re.I,
+    re.IGNORECASE,
 )
 _SERP_NEWS = re.compile(
     r"^(?P<m>\d{1,2})/(?P<d>\d{1,2})/(?P<y>\d{4}),\s*(?P<h>\d{1,2}):(?P<min>\d{2})\s*"
     r"(?P<ampm>AM|PM)(?:,\s*(?P<sign>[+-])(?P<oh>\d{2})(?P<om>\d{2})(?:\s*UTC)?)?$",
-    re.I,
+    re.IGNORECASE,
 )
 _DATE_FORMATS = (
     "%b %d, %Y",
@@ -89,7 +91,12 @@ def _parse_serp_news(value: str) -> datetime | None:
     hour = int(match["h"]) % 12 + (12 if match["ampm"].upper() == "PM" else 0)
     try:
         moment = datetime(
-            int(match["y"]), int(match["m"]), int(match["d"]), hour, int(match["min"]), tzinfo=UTC
+            int(match["y"]),
+            int(match["m"]),
+            int(match["d"]),
+            hour,
+            int(match["min"]),
+            tzinfo=UTC,
         )
     except ValueError:
         return None
@@ -113,7 +120,9 @@ def _parse_yearless(value: str, reference: datetime) -> datetime | None:
     text = re.sub(r"\s+", " ", value.strip().rstrip("."))
     for fmt in _YEARLESS_FORMATS:
         try:
-            parsed = datetime.strptime(f"{text} 2000", f"{fmt} %Y")  # 2000: leap year
+            parsed = datetime.strptime(f"{text} 2000", f"{fmt} %Y").replace(
+                tzinfo=UTC
+            )  # 2000: leap year
         except ValueError:
             continue
         for year in (reference.year, reference.year - 1):
@@ -138,7 +147,9 @@ def _parse_relative(value: str, reference: datetime) -> datetime | None:
         return None
     raw = match["n"].casefold()
     count = int(raw) if raw.isdigit() else _NUMBER_WORDS[raw]
-    return reference - timedelta(seconds=count * _UNIT_SECONDS[match["unit"].casefold()])
+    return reference - timedelta(
+        seconds=count * _UNIT_SECONDS[match["unit"].casefold()]
+    )
 
 
 def parse_published(
@@ -151,9 +162,12 @@ def parse_published(
     """
     reference = _utc(reference)
 
-    if published_iso and (moment := _parse_iso(published_iso)) is not None:
-        if _plausible(moment, reference):
-            return ParsedDate(published_at=moment, confidence=DateConfidence.exact)
+    if (
+        published_iso
+        and (moment := _parse_iso(published_iso)) is not None
+        and _plausible(moment, reference)
+    ):
+        return ParsedDate(published_at=moment, confidence=DateConfidence.exact)
 
     raw = (published_raw or "").strip()
     if not raw:
@@ -166,9 +180,14 @@ def parse_published(
                 return ParsedDate(published_at=moment, confidence=DateConfidence.exact)
             return UNKNOWN
 
-    for approximate in (_parse_relative(raw, reference), _parse_yearless(raw, reference)):
+    for approximate in (
+        _parse_relative(raw, reference),
+        _parse_yearless(raw, reference),
+    ):
         if approximate is not None and _plausible(approximate, reference):
-            return ParsedDate(published_at=approximate, confidence=DateConfidence.approximate)
+            return ParsedDate(
+                published_at=approximate, confidence=DateConfidence.approximate
+            )
     return UNKNOWN
 
 

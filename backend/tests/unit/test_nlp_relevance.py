@@ -57,7 +57,12 @@ def test_case_and_punctuation_do_not_matter(title):
 
 @pytest.mark.parametrize(
     "title",
-    ["galaxy-s25-ultra review", "Galaxy   S25\tUltra", "GALAXY S25 ULTRA!!", "galaxy s25 ultra"],
+    [
+        "galaxy-s25-ultra review",
+        "Galaxy   S25\tUltra",
+        "GALAXY S25 ULTRA!!",
+        "galaxy s25 ultra",
+    ],
 )
 def test_product_spelling_variants_match(title):
     result = detect_relevance(SAMSUNG, title, None)
@@ -74,7 +79,9 @@ def test_partial_words_do_not_match(title):
 
 
 def test_unrelated_item_is_not_about_brand():
-    result = detect_relevance(SAMSUNG, "Best budget phones of the year", "Apple and OnePlus.")
+    result = detect_relevance(
+        SAMSUNG, "Best budget phones of the year", "Apple and OnePlus."
+    )
     assert result == RelevanceResult(False, (), False, False)
 
 
@@ -83,7 +90,9 @@ def test_product_is_not_derived_from_a_longer_configured_name():
     assert not detect_relevance(profile, "S25 Ultra review", None).is_about_brand
 
 
-@pytest.mark.parametrize("title,snippet", [(None, None), ("", ""), ("   ", None), (None, "")])
+@pytest.mark.parametrize(
+    "title,snippet", [(None, None), ("", ""), ("   ", None), (None, "")]
+)
 def test_missing_text_is_not_about_brand(title, snippet):
     assert not detect_relevance(SAMSUNG, title, snippet).is_about_brand
 
@@ -93,7 +102,9 @@ def test_snippet_is_optional():
 
 
 def test_blank_and_duplicate_terms_are_ignored():
-    profile = BrandProfile(brand=" Samsung ", products=("", "  ", "samsung"), aliases=("!!!",))
+    profile = BrandProfile(
+        brand=" Samsung ", products=("", "  ", "samsung"), aliases=("!!!",)
+    )
     assert profile.brand == "Samsung"
     assert profile.terms == ("Samsung",)
     assert not detect_relevance(profile, "!!! only punctuation", None).is_about_brand

@@ -19,7 +19,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from app.schemas.serp import CacheEntry, ParamValue, QuerySpec
-from app.services.serpapi.parsers.common import has_results, is_no_results_error, response_error
+from app.services.serpapi.parsers.common import (
+    has_results,
+    is_no_results_error,
+    response_error,
+)
 from app.services.serpapi.sanitize import sanitize_response
 
 # Empty results are cached briefly: the query may start returning data soon.
@@ -81,11 +85,15 @@ def assert_absolute_dates(spec: QuerySpec) -> None:
     """Refuse relative date filters (`tbs=qdr:*`, Trends `today 1-m`, News `when:7d`)."""
     params = spec.params
     if "qdr:" in str(params.get("tbs", "")).casefold():
-        raise RelativeDateError("relative date filter in `tbs`; use absolute `cdr:` dates")
+        raise RelativeDateError(
+            "relative date filter in `tbs`; use absolute `cdr:` dates"
+        )
     if _RELATIVE_TRENDS_DATE.match(str(params.get("date", "")).strip()):
         raise RelativeDateError("relative Trends `date`; use two absolute dates")
     if _RELATIVE_NEWS_OPERATOR.search(str(params.get("q", ""))):
-        raise RelativeDateError("relative `when:` operator in query; use after:/before:")
+        raise RelativeDateError(
+            "relative `when:` operator in query; use after:/before:"
+        )
 
 
 def is_fresh(entry: CacheEntry, now: datetime) -> bool:
@@ -147,7 +155,9 @@ class ResponseCache:
             http_status=http_status,
             fetched_at=now,
             expires_at=now + (self._empty_ttl if empty else self._ttl),
-            pinned=bool(existing and existing.pinned),  # a refresh never unpins demo data
+            pinned=bool(
+                existing and existing.pinned
+            ),  # a refresh never unpins demo data
         )
         self._store.put(entry)
         return entry

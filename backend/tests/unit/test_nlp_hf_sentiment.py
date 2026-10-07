@@ -40,9 +40,11 @@ class FakeClassifier:
             by_class = {"negative": 0.40, "neutral": 0.2, "positive": 0.40 + 0.05}
         row = []
         for label in self.labels:
-            key = {"label_0": "negative", "label_1": "neutral", "label_2": "positive"}.get(
-                label.lower(), label.lower()
-            )
+            key = {
+                "label_0": "negative",
+                "label_1": "neutral",
+                "label_2": "positive",
+            }.get(label.lower(), label.lower())
             row.append(by_class.get(key, 0.0))
         total = sum(row)
         return [p / total for p in row]
@@ -63,7 +65,9 @@ def make(classifier=None, **options):
         calls.append(config)
         return classifier
 
-    analyzer = HFSentimentAnalyzer("org/some-model", classifier_factory=factory, **options)
+    analyzer = HFSentimentAnalyzer(
+        "org/some-model", classifier_factory=factory, **options
+    )
     return analyzer, classifier, calls
 
 
@@ -85,11 +89,17 @@ def test_results_are_valid_aligned_with_inputs_and_deterministic():
     analyzer, _, _ = make()
     texts = ["the camera is amazing", "the battery is terrible", "it exists"]
     first = analyzer.analyze(texts)
-    assert [r.label for r in first] == [Sentiment.positive, Sentiment.negative, Sentiment.neutral]
+    assert [r.label for r in first] == [
+        Sentiment.positive,
+        Sentiment.negative,
+        Sentiment.neutral,
+    ]
     assert first == analyzer.analyze(texts)
     for result in first:
         assert math.isclose(
-            result.positive_prob + result.neutral_prob + result.negative_prob, 1.0, abs_tol=1e-9
+            result.positive_prob + result.neutral_prob + result.negative_prob,
+            1.0,
+            abs_tol=1e-9,
         )
     assert first[0].score > 0.8 and first[1].score < -0.8
 
@@ -127,7 +137,10 @@ def test_model_loads_once_on_first_real_text_and_is_reused():
     analyzer.analyze(["the camera is amazing"])
     analyzer.analyze(["the battery is terrible"])
     assert len(calls) == 1 and analyzer.is_loaded
-    assert classifier.batches == [["the camera is amazing"], ["the battery is terrible"]]
+    assert classifier.batches == [
+        ["the camera is amazing"],
+        ["the battery is terrible"],
+    ]
 
 
 def test_two_analyzers_with_the_same_config_share_one_loaded_model():
@@ -209,7 +222,10 @@ def test_wrong_row_count_from_the_classifier_is_an_error():
             (Sentiment.negative, Sentiment.neutral, Sentiment.positive),
         ),
         (("NEGATIVE", "POSITIVE"), (Sentiment.negative, Sentiment.positive)),
-        (("Neg", "Neu", "Pos"), (Sentiment.negative, Sentiment.neutral, Sentiment.positive)),
+        (
+            ("Neg", "Neu", "Pos"),
+            (Sentiment.negative, Sentiment.neutral, Sentiment.positive),
+        ),
     ],
 )
 def test_map_labels(labels, expected):
@@ -238,7 +254,8 @@ def test_model_with_unsupported_labels_fails_on_first_use_not_silently():
 
 
 @pytest.mark.parametrize(
-    "labels", [THREE, ("positive", "neutral", "negative"), ("LABEL_0", "LABEL_1", "LABEL_2")]
+    "labels",
+    [THREE, ("positive", "neutral", "negative"), ("LABEL_0", "LABEL_1", "LABEL_2")],
 )
 def test_label_order_of_the_model_does_not_change_the_answer(labels):
     analyzer, _, _ = make(FakeClassifier(labels))
@@ -260,7 +277,9 @@ def test_low_margin_prediction_becomes_neutral_but_keeps_probabilities():
     analyzer, _, _ = make()
     (result,) = analyzer.analyze(["mixed feelings"])  # positive 0.45 vs negative 0.40
     assert result.label is Sentiment.neutral
-    assert result.positive_prob > result.negative_prob  # raw probabilities are not rewritten
+    assert (
+        result.positive_prob > result.negative_prob
+    )  # raw probabilities are not rewritten
 
 
 def test_margin_is_configurable_and_zero_disables_the_rule():
@@ -278,17 +297,27 @@ def test_margin_boundary_is_inclusive():
 def test_to_result_renormalises_slightly_off_probabilities():
     classes = (Sentiment.negative, Sentiment.neutral, Sentiment.positive)
     result = to_result([0.1, 0.1, 0.7], classes, 0.15)  # sums to 0.9
-    assert math.isclose(result.positive_prob + result.neutral_prob + result.negative_prob, 1.0)
+    assert math.isclose(
+        result.positive_prob + result.neutral_prob + result.negative_prob, 1.0
+    )
     assert result.label is Sentiment.positive
 
 
 @pytest.mark.parametrize(
     "row",
-    [[0.2, 0.8], [float("nan"), 0.5, 0.5], [-0.1, 0.6, 0.5], [0.0, 0.0, 0.0], [1e999, 0.1, 0.1]],
+    [
+        [0.2, 0.8],
+        [float("nan"), 0.5, 0.5],
+        [-0.1, 0.6, 0.5],
+        [0.0, 0.0, 0.0],
+        [1e999, 0.1, 0.1],
+    ],
 )
 def test_to_result_rejects_invalid_rows(row):
     with pytest.raises(ValueError):
-        to_result(row, (Sentiment.negative, Sentiment.neutral, Sentiment.positive), 0.15)
+        to_result(
+            row, (Sentiment.negative, Sentiment.neutral, Sentiment.positive), 0.15
+        )
 
 
 # ---- configuration ----
@@ -304,7 +333,12 @@ def test_config_tag_reflects_settings_that_change_results():
 
 @pytest.mark.parametrize(
     "options",
-    [{"batch_size": 0}, {"max_length": 4}, {"neutral_margin": -0.1}, {"neutral_margin": 1.0}],
+    [
+        {"batch_size": 0},
+        {"max_length": 4},
+        {"neutral_margin": -0.1},
+        {"neutral_margin": 1.0},
+    ],
 )
 def test_invalid_options_are_rejected(options):
     with pytest.raises(ValueError):

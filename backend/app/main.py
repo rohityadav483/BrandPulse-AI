@@ -27,7 +27,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        logger.info("startup", extra={"version": __version__, "demo_mode": settings.demo_mode})
+        logger.info(
+            "startup", extra={"version": __version__, "demo_mode": settings.demo_mode}
+        )
         yield
         dispose_engines()
         logger.info("shutdown")
@@ -52,7 +54,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception:
             logger.exception(
                 "request_failed",
-                extra={"method": request.method, "path": request.url.path, "status": 500},
+                extra={
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status": 500,
+                },
             )
             raise
         else:

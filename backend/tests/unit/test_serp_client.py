@@ -43,8 +43,12 @@ def make(script, *, allow_live=True, key=KEY, retries=2):
 def test_success_sends_engine_and_key_and_stringifies_params():
     client, transport, _ = make(lambda engine, params: ok(GOOD))
     result = client.fetch(SPEC)
-    assert result.response == GOOD and result.http_status == 200 and result.attempts == 1
-    assert transport.calls == [{"q": "samsung", "safe": "true", "engine": "google", "api_key": KEY}]
+    assert (
+        result.response == GOOD and result.http_status == 200 and result.attempts == 1
+    )
+    assert transport.calls == [
+        {"q": "samsung", "safe": "true", "engine": "google", "api_key": KEY}
+    ]
 
 
 def test_live_switch_off_never_reaches_transport():
@@ -63,7 +67,9 @@ def test_missing_key_never_reaches_transport():
 
 def test_default_transport_cannot_open_a_socket_in_tests():
     client = SerpApiClient(api_key=KEY, allow_live=True, max_retries=0)
-    with pytest.raises(Exception) as err:  # network is blocked: surfaces as a mapped error
+    with pytest.raises(
+        Exception
+    ) as err:  # network is blocked: surfaces as a mapped error
         client.fetch(SPEC)
     assert KEY not in str(err.value)
 
@@ -75,7 +81,11 @@ def test_default_transport_cannot_open_a_socket_in_tests():
         (403, {"error": "Forbidden"}, SerpApiAuthError),
         (400, {"error": "Missing query `q` parameter"}, SerpApiBadRequest),
         (404, None, SerpApiBadRequest),
-        (429, {"error": "Your account has run out of searches."}, SerpApiAccountQuotaExhausted),
+        (
+            429,
+            {"error": "Your account has run out of searches."},
+            SerpApiAccountQuotaExhausted,
+        ),
         (200, {"error": "Something broke upstream"}, SerpApiResponseError),
         (200, None, SerpApiResponseError),
     ],
@@ -122,7 +132,9 @@ def test_rate_limit_honours_retry_after_and_caps_it():
 
 
 def test_rate_limit_error_type_after_retries():
-    client, _, _ = make(lambda e, p: TransportResponse(429, {"error": "slow down"}), retries=1)
+    client, _, _ = make(
+        lambda e, p: TransportResponse(429, {"error": "slow down"}), retries=1
+    )
     with pytest.raises(SerpApiRateLimited):
         client.fetch(SPEC)
 

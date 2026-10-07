@@ -22,7 +22,12 @@ from app.db.models.raw_item import RawItemRow
 from app.schemas.domain import ContentPurpose, SourceType, WindowKind
 from app.schemas.serp import RawItem, RawItemContext, RawItemWriteResult, StoredRawItem
 
-_IDENTITY = [RawItemRow.analysis_id, RawItemRow.brand_id, RawItemRow.purpose, RawItemRow.raw_key]
+_IDENTITY = [
+    RawItemRow.analysis_id,
+    RawItemRow.brand_id,
+    RawItemRow.purpose,
+    RawItemRow.raw_key,
+]
 
 
 def _values(context: RawItemContext, item: RawItem) -> dict:
@@ -100,7 +105,9 @@ class RawItemRepository:
 
     # ---- create ----
 
-    def add_many(self, context: RawItemContext, items: Sequence[RawItem]) -> RawItemWriteResult:
+    def add_many(
+        self, context: RawItemContext, items: Sequence[RawItem]
+    ) -> RawItemWriteResult:
         """Persist a batch in one transaction. Exact repeats are skipped, never updated.
 
         Repeats include items already stored and identical items inside this batch.
@@ -204,7 +211,10 @@ class RawItemRepository:
         """True if this exact occurrence is already stored for the context's
         analysis, brand and purpose."""
         return item.compute_raw_key() in self.existing_keys(
-            context.analysis_id, context.brand_id, context.purpose, [item.compute_raw_key()]
+            context.analysis_id,
+            context.brand_id,
+            context.purpose,
+            [item.compute_raw_key()],
         )
 
     def existing_keys(

@@ -1,0 +1,525 @@
+{
+  "meta": {
+    "fixture_version": "1",
+    "scenario": "Samsung Galaxy S25 Ultra",
+    "as_of_date": "2026-08-10",
+    "period_days": 30,
+    "mode": "bundle_fallback",
+    "notes": "Pinned local fallback bundle for Phase 10 rehearsal. Replace/export from a verified live run before demo day."
+  },
+  "formula_inputs": {
+    "growth": {
+      "current_n": 9,
+      "current_N": 31,
+      "baseline_n": 2,
+      "baseline_N": 27,
+      "epsilon": 0.02,
+      "expected": 3.3
+    },
+    "signal": {
+      "growth_component": 0.74,
+      "frequency_component": 0.8,
+      "cross_source_component": 1.0,
+      "sentiment_impact_component": 0.6,
+      "expected_score": 0.79
+    },
+    "health": {
+      "sentiment": 72,
+      "engagement": 81,
+      "risk": 64,
+      "trend": 76,
+      "expected_overall": 73
+    },
+    "confidence": {
+      "independence": 0.9,
+      "agreement": 0.85,
+      "signal_strength": 0.79,
+      "recency": 0.9,
+      "consistency": 0.8,
+      "expected_score": 86
+    },
+    "net_scores": {
+      "camera": {
+        "positive": 78,
+        "negative": 8,
+        "expected": 70
+      },
+      "battery": {
+        "positive": 12,
+        "negative": 60,
+        "expected": -48
+      },
+      "apple_battery": {
+        "positive": 40,
+        "negative": 20,
+        "expected": 20
+      }
+    }
+  },
+  "dashboard": {
+    "analysis": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "status": "completed",
+      "product": "Galaxy S25 Ultra",
+      "as_of_date": "2026-08-10",
+      "live_run": false,
+      "period": {
+        "current_start": "2026-07-12",
+        "current_end": "2026-08-10",
+        "baseline_start": "2026-06-12",
+        "baseline_end": "2026-07-11"
+      },
+      "warnings": []
+    },
+    "target": {
+      "brand": {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "name": "Samsung",
+        "role": "target"
+      },
+      "sample_size": 64,
+      "baseline_sample_size": 41,
+      "growth_sample_size": {
+        "current": 31,
+        "baseline": 27
+      },
+      "low_data": false,
+      "health": {
+        "overall": 73,
+        "sentiment": 72,
+        "engagement": 81,
+        "risk": 64,
+        "trend": 76,
+        "formula_version": "v1"
+      },
+      "sentiment": {
+        "positive": 62,
+        "neutral": 21,
+        "negative": 17
+      },
+      "aspects": [
+        {
+          "aspect": "camera",
+          "net_score": 70,
+          "mentions": 12,
+          "positive": 78,
+          "neutral": 14,
+          "negative": 8
+        },
+        {
+          "aspect": "battery",
+          "net_score": -48,
+          "mentions": 14,
+          "positive": 12,
+          "neutral": 28,
+          "negative": 60
+        }
+      ],
+      "topics": [
+        {
+          "topic": "battery",
+          "count": 14
+        },
+        {
+          "topic": "camera",
+          "count": 12
+        }
+      ],
+      "source_mix": {
+        "web": 18,
+        "news": 16,
+        "youtube": 20,
+        "forum": 10
+      },
+      "search_interest": {
+        "change_pct": 31,
+        "series": [
+          {
+            "date": "2026-08-04",
+            "value": 52
+          },
+          {
+            "date": "2026-08-10",
+            "value": 68
+          }
+        ]
+      }
+    },
+    "competitors": [
+      {
+        "brand": {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "name": "Apple",
+          "role": "competitor"
+        },
+        "sample_size": 38,
+        "low_data": false,
+        "sentiment": {
+          "positive": 74,
+          "neutral": 15,
+          "negative": 11
+        },
+        "aspects": [
+          {
+            "aspect": "battery",
+            "net_score": 20,
+            "mentions": 18,
+            "positive": 40,
+            "neutral": 40,
+            "negative": 20
+          }
+        ],
+        "search_interest": {
+          "change_pct": 8,
+          "series": []
+        }
+      },
+      {
+        "brand": {
+          "id": "00000000-0000-4000-8000-000000000012",
+          "name": "OnePlus",
+          "role": "competitor"
+        },
+        "sample_size": 35,
+        "low_data": false,
+        "sentiment": {
+          "positive": 69,
+          "neutral": 18,
+          "negative": 13
+        },
+        "aspects": [
+          {
+            "aspect": "battery",
+            "net_score": 14,
+            "mentions": 15,
+            "positive": 39,
+            "neutral": 36,
+            "negative": 25
+          }
+        ],
+        "search_interest": {
+          "change_pct": 12,
+          "series": []
+        }
+      }
+    ],
+    "signals": [
+      {
+        "id": "00000000-0000-4000-8000-000000000020",
+        "brand_id": "00000000-0000-4000-8000-000000000010",
+        "kind": "aspect_negative_spike",
+        "aspect": "battery",
+        "growth": 3.3,
+        "impact": "high",
+        "confidence": 87,
+        "confidence_source": "signal",
+        "sources_count": 4,
+        "source_types": [
+          "youtube",
+          "forum",
+          "web",
+          "news"
+        ],
+        "current_share": 0.29,
+        "baseline_share": 0.07,
+        "current_n": 9,
+        "baseline_n": 2,
+        "trend_corroborated": true,
+        "status": "detected",
+        "investigation_id": "00000000-0000-4000-8000-000000000030"
+      }
+    ]
+  },
+  "signal_detail": {
+    "id": "00000000-0000-4000-8000-000000000020",
+    "analysis_id": "00000000-0000-4000-8000-000000000001",
+    "brand": {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "name": "Samsung",
+      "role": "target"
+    },
+    "kind": "aspect_negative_spike",
+    "aspect": "battery",
+    "growth": 3.3,
+    "impact": "high",
+    "confidence": 87,
+    "confidence_source": "signal",
+    "score": 0.79,
+    "score_components": {
+      "growth": 0.74,
+      "frequency": 0.8,
+      "cross_source": 1.0,
+      "sentiment_impact": 0.6
+    },
+    "sources_count": 4,
+    "source_types": [
+      "youtube",
+      "forum",
+      "web",
+      "news"
+    ],
+    "current_share": 0.29,
+    "baseline_share": 0.07,
+    "current_n": 9,
+    "baseline_n": 2,
+    "trend_corroborated": true,
+    "status": "investigated",
+    "latest_investigation": {
+      "id": "00000000-0000-4000-8000-000000000030",
+      "status": "completed"
+    }
+  },
+  "investigation": {
+    "id": "00000000-0000-4000-8000-000000000030",
+    "signal_id": "00000000-0000-4000-8000-000000000020",
+    "analysis_id": "00000000-0000-4000-8000-000000000001",
+    "status": "completed",
+    "step": "done",
+    "steps": [
+      {
+        "key": "generating_queries",
+        "label": "Generating investigation queries",
+        "state": "done"
+      },
+      {
+        "key": "collecting_evidence",
+        "label": "Collecting independent evidence",
+        "state": "done"
+      },
+      {
+        "key": "scoring_evidence",
+        "label": "Cross-checking sources",
+        "state": "done"
+      },
+      {
+        "key": "comparing_competitors",
+        "label": "Comparing competitors",
+        "state": "done"
+      },
+      {
+        "key": "synthesizing",
+        "label": "Writing explanation",
+        "state": "done"
+      },
+      {
+        "key": "recommending",
+        "label": "Preparing recommendations",
+        "state": "done"
+      }
+    ],
+    "report": {
+      "generated_by": "fallback",
+      "summary": "Battery complaints increased sharply in the pinned window and appear associated with a recent software-update discussion. The evidence supports monitoring and investigation, not a claim of proven causation.",
+      "findings": [
+        {
+          "text": "Multiple forum discussions report faster battery drain after a recent update.",
+          "evidence_ids": [
+            "00000000-0000-4000-8000-000000000040",
+            "00000000-0000-4000-8000-000000000041"
+          ]
+        },
+        {
+          "text": "Web and news coverage also reference battery-drain complaints, providing cross-source corroboration.",
+          "evidence_ids": [
+            "00000000-0000-4000-8000-000000000042",
+            "00000000-0000-4000-8000-000000000043"
+          ]
+        }
+      ],
+      "scope": {
+        "verdict": "brand_specific",
+        "ratio": 2.4,
+        "explanation": "Samsung's battery-negative share is currently higher than the competitor comparison baseline."
+      },
+      "confidence": {
+        "score": 86,
+        "label": "high",
+        "factors": {
+          "independence": 0.9,
+          "agreement": 0.85,
+          "signal_strength": 0.79,
+          "recency": 0.9,
+          "consistency": 0.8
+        }
+      },
+      "source_coverage": [
+        {
+          "source_type": "youtube",
+          "supporting": 5
+        },
+        {
+          "source_type": "forum",
+          "supporting": 7
+        },
+        {
+          "source_type": "web",
+          "supporting": 3
+        },
+        {
+          "source_type": "news",
+          "supporting": 2
+        },
+        {
+          "source_type": "trends",
+          "supporting": 1
+        }
+      ],
+      "search_interest": {
+        "keyword": "Samsung battery",
+        "change_pct": 31
+      },
+      "competitor_comparison": {
+        "aspect": "battery",
+        "rows": [
+          {
+            "brand": {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "name": "Samsung",
+              "role": "target"
+            },
+            "positive_pct": 62,
+            "negative_pct": 17,
+            "aspect_negative_share": 0.28,
+            "level": "high",
+            "search_interest_change_pct": 31
+          },
+          {
+            "brand": {
+              "id": "00000000-0000-4000-8000-000000000011",
+              "name": "Apple",
+              "role": "competitor"
+            },
+            "positive_pct": 74,
+            "negative_pct": 11,
+            "aspect_negative_share": 0.06,
+            "level": "low",
+            "search_interest_change_pct": 8
+          },
+          {
+            "brand": {
+              "id": "00000000-0000-4000-8000-000000000012",
+              "name": "OnePlus",
+              "role": "competitor"
+            },
+            "positive_pct": 69,
+            "negative_pct": 13,
+            "aspect_negative_share": 0.08,
+            "level": "low",
+            "search_interest_change_pct": 12
+          }
+        ]
+      },
+      "recommendations": [
+        {
+          "id": "00000000-0000-4000-8000-000000000050",
+          "priority": "high",
+          "title": "Investigate battery performance after the latest software update",
+          "action": "Review support tickets, update telemetry, and reproduce the reported battery-drain scenario.",
+          "rationale": "The signal is high impact and supported across multiple independent source types.",
+          "evidence_ids": [
+            "00000000-0000-4000-8000-000000000040",
+            "00000000-0000-4000-8000-000000000042"
+          ],
+          "timeframe": "next 7 days"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000051",
+          "priority": "medium",
+          "title": "Monitor battery-related discussion",
+          "action": "Track the signal and compare the next observation window against the current baseline.",
+          "rationale": "The public signal is elevated but does not prove causation.",
+          "evidence_ids": [
+            "00000000-0000-4000-8000-000000000041"
+          ],
+          "timeframe": "next 7 days"
+        }
+      ],
+      "disclaimer": "Confidence is an analytical estimate based on available public sources, not a statement of certainty. Findings show association, not proven causation."
+    },
+    "error": null
+  },
+  "evidence": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000040",
+        "stance": "supports",
+        "relevance": 0.94,
+        "note": "Reports battery drain after the update.",
+        "rank": 1,
+        "source": {
+          "source_type": "forum",
+          "domain": "reddit.com",
+          "url": "https://www.reddit.com/",
+          "title": "Galaxy S25 Ultra battery discussion",
+          "snippet": "Users discuss faster battery drain after an update.",
+          "author": "community member",
+          "published_at": "2026-08-06T08:00:00Z",
+          "date_confidence": "exact",
+          "collected_at": "2026-08-10T10:00:00Z"
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000041",
+        "stance": "supports",
+        "relevance": 0.91,
+        "note": "Independent forum discussion describes similar battery behavior.",
+        "rank": 2,
+        "source": {
+          "source_type": "forum",
+          "domain": "reddit.com",
+          "url": "https://www.reddit.com/",
+          "title": "Battery life after software update",
+          "snippet": "Another discussion references battery drain after updating.",
+          "author": "community member",
+          "published_at": "2026-08-07T12:00:00Z",
+          "date_confidence": "exact",
+          "collected_at": "2026-08-10T10:00:00Z"
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000042",
+        "stance": "supports",
+        "relevance": 0.89,
+        "note": "Web coverage corroborates the complaint pattern.",
+        "rank": 3,
+        "source": {
+          "source_type": "web",
+          "domain": "samsung.com",
+          "url": "https://www.samsung.com/",
+          "title": "Galaxy support information",
+          "snippet": "Support content provides context for battery behavior.",
+          "author": null,
+          "published_at": "2026-08-08T09:00:00Z",
+          "date_confidence": "approximate",
+          "collected_at": "2026-08-10T10:00:00Z"
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000043",
+        "stance": "supports",
+        "relevance": 0.86,
+        "note": "News coverage references battery complaints.",
+        "rank": 4,
+        "source": {
+          "source_type": "news",
+          "domain": "example.com",
+          "url": "https://example.com/",
+          "title": "Galaxy S25 Ultra battery reports",
+          "snippet": "A synthetic news item used only for UI and contract testing.",
+          "author": "Example News",
+          "published_at": "2026-08-09T06:00:00Z",
+          "date_confidence": "exact",
+          "collected_at": "2026-08-10T10:00:00Z"
+        }
+      }
+    ],
+    "page": 1,
+    "page_size": 20,
+    "total": 4,
+    "counts": {
+      "supports": 4,
+      "contradicts": 0,
+      "neutral": 0
+    }
+  }
+}

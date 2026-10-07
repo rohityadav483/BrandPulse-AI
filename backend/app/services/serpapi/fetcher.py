@@ -75,7 +75,9 @@ class CollectionWarning:
 @dataclass
 class CollectionResult:
     fetched: list[tuple[PlannedCall, FetchResult]] = field(default_factory=list)
-    skipped: list[tuple[PlannedCall, str]] = field(default_factory=list)  # (call, reason code)
+    skipped: list[tuple[PlannedCall, str]] = field(
+        default_factory=list
+    )  # (call, reason code)
     warnings: list[CollectionWarning] = field(default_factory=list)
 
     @property
@@ -133,7 +135,9 @@ class SerpFetcher:
                 http_status=entry.http_status,
                 **context,
             )
-            return FetchResult(spec, key, entry.response, FetchSource.cache, 0, entry.http_status)
+            return FetchResult(
+                spec, key, entry.response, FetchSource.cache, 0, entry.http_status
+            )
 
         if not network:
             raise LiveCallsStopped
@@ -166,7 +170,9 @@ class SerpFetcher:
                 **context,
             )
             budget.consume(1)
-        return FetchResult(spec, key, result.response, FetchSource.live, 1, result.http_status)
+        return FetchResult(
+            spec, key, result.response, FetchSource.live, 1, result.http_status
+        )
 
     def collect(
         self,
@@ -199,7 +205,10 @@ class SerpFetcher:
                     network=network,
                 )
             except LiveDataDisabled:
-                warn("live_data_disabled", "Live SerpApi calls are off; using cached data only.")
+                warn(
+                    "live_data_disabled",
+                    "Live SerpApi calls are off; using cached data only.",
+                )
                 out.skipped.append((call, "live_data_disabled"))
             except QuotaLow as exc:
                 warn(

@@ -62,7 +62,9 @@ class Sentiment(enum.StrEnum):
 
 
 class SignalKind(enum.StrEnum):
-    aspect_negative_spike = "aspect_negative_spike"  # `topic_surge` is reserved, not in the MVP
+    aspect_negative_spike = (
+        "aspect_negative_spike"  # `topic_surge` is reserved, not in the MVP
+    )
 
 
 class ImpactLevel(enum.StrEnum):
@@ -189,7 +191,7 @@ MAX_NAME_LENGTH = 80
 PERIOD_DAYS_CHOICES = (7, 14, 30)
 
 
-def confidence_label(score: int | float) -> ConfidenceLabel:
+def confidence_label(score: float) -> ConfidenceLabel:
     """low < 40, medium 40-69, high >= 70."""
     if score < 40:
         return ConfidenceLabel.low

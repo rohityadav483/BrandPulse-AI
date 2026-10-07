@@ -48,7 +48,9 @@ def to_content_item(
     snippet = clean_text(raw.snippet)
     author = clean_text(raw.author)
 
-    parsed = parse_published(raw.published_raw, raw.published_iso, reference or raw.collected_at)
+    parsed = parse_published(
+        raw.published_raw, raw.published_iso, reference or raw.collected_at
+    )
     if raw.purpose is ContentPurpose.investigation:
         window: WindowKind | None = None  # investigation items carry no window
     else:
@@ -67,7 +69,8 @@ def to_content_item(
         author=author,
         published_at=parsed.published_at,
         date_confidence=parsed.confidence,
-        query=raw.query or "",  # content_items.query is NOT NULL; "" = query not recorded
+        query=raw.query
+        or "",  # content_items.query is NOT NULL; "" = query not recorded
         metadata=raw.metadata,
         content_hash=content_hash(title, snippet),
         serp_cache_key=raw.serp_cache_key,
@@ -75,7 +78,9 @@ def to_content_item(
     )
 
 
-def _stats(items: Sequence[ContentItem], raw_in: int, dropped: int, groups: int) -> ProcessingStats:
+def _stats(
+    items: Sequence[ContentItem], raw_in: int, dropped: int, groups: int
+) -> ProcessingStats:
     def count(predicate) -> int:
         return sum(1 for item in items if predicate(item))
 
@@ -85,7 +90,9 @@ def _stats(items: Sequence[ContentItem], raw_in: int, dropped: int, groups: int)
         dropped=dropped,
         near_duplicate_groups=groups,
         date_exact=count(lambda i: i.date_confidence is DateConfidence.exact),
-        date_approximate=count(lambda i: i.date_confidence is DateConfidence.approximate),
+        date_approximate=count(
+            lambda i: i.date_confidence is DateConfidence.approximate
+        ),
         date_unknown=count(lambda i: i.date_confidence is DateConfidence.unknown),
         window_current=count(lambda i: i.window is WindowKind.current),
         window_baseline=count(lambda i: i.window is WindowKind.baseline),
@@ -111,7 +118,9 @@ def process_raw_items(
     """
     scopes = {(raw.analysis_id, raw.brand_id) for raw in raw_items}
     if len(scopes) > 1:
-        raise ValueError("process_raw_items handles one (analysis, brand) batch at a time")
+        raise ValueError(
+            "process_raw_items handles one (analysis, brand) batch at a time"
+        )
 
     converted: list[tuple[StoredRawItem, ContentItem]] = []
     dropped: list[DroppedRaw] = []
@@ -120,7 +129,9 @@ def process_raw_items(
         result = to_content_item(
             raw,
             windows=windows,
-            reference=references.get(raw.serp_cache_key) if raw.serp_cache_key else None,
+            reference=references.get(raw.serp_cache_key)
+            if raw.serp_cache_key
+            else None,
         )
         if isinstance(result, DropReason):
             dropped.append(DroppedRaw(raw_item_id=raw.id, reason=result))
@@ -130,7 +141,9 @@ def process_raw_items(
     items = [item for _, item in converted]
     deduped = dedupe(items, known_content_hashes, known_url_hashes)
     for drop in deduped.dropped:
-        dropped.append(DroppedRaw(raw_item_id=converted[drop.index][0].id, reason=drop.reason))
+        dropped.append(
+            DroppedRaw(raw_item_id=converted[drop.index][0].id, reason=drop.reason)
+        )
 
     kept = [
         items[index].model_copy(update={"dup_group": deduped.dup_groups[index]})

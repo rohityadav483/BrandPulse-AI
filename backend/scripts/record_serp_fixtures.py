@@ -50,7 +50,9 @@ def fixture_name(index: int, label: str) -> str:
     return f"recorded_{index:02d}_{slug}.json"
 
 
-def wrap_recording(call_label: str, params: dict[str, Any], response: dict[str, Any]) -> dict:
+def wrap_recording(
+    call_label: str, params: dict[str, Any], response: dict[str, Any]
+) -> dict:
     return {
         "_fixture": {
             "kind": "recorded",
@@ -78,14 +80,18 @@ def main(argv: list[str] | None = None) -> int:
         period_days=args.period,
         max_calls=args.max_calls,
     )
-    print(f"Plan: {plan.planned_calls} call(s) (upper bound; cached calls cost nothing)")
+    print(
+        f"Plan: {plan.planned_calls} call(s) (upper bound; cached calls cost nothing)"
+    )
     for index, call in enumerate(plan.calls, start=1):
         print(f"  {index:02d} {call.label}  q={call.spec.query!r}")
     if not args.live:
         print("Plan only: no network call, no database connection, no credits spent.")
         return 0
     if args.confirm_credits != plan.planned_calls:
-        print(f"Refusing: pass --confirm-credits {plan.planned_calls} to approve the spend.")
+        print(
+            f"Refusing: pass --confirm-credits {plan.planned_calls} to approve the spend."
+        )
         return 2
     return _run_live(args, plan)
 
@@ -113,7 +119,9 @@ def _run_live(args: argparse.Namespace, plan: Any) -> int:
     from app.services.serpapi.usage import MonthlyQuota
 
     engine = get_engine(settings.database_url)
-    cache = ResponseCache(SerpCacheRepository(engine), ttl_hours=settings.serp_cache_ttl_hours)
+    cache = ResponseCache(
+        SerpCacheRepository(engine), ttl_hours=settings.serp_cache_ttl_hours
+    )
     quota = MonthlyQuota(
         SerpUsageRepository(engine),
         account_label=settings.serpapi_account_label,
@@ -136,11 +144,15 @@ def _run_live(args: argparse.Namespace, plan: Any) -> int:
     for index, (call, fetched) in enumerate(result.fetched, start=1):
         body = wrap_recording(call.label, dict(call.spec.params), fetched.response)
         path = args.out / fixture_name(index, call.label)
-        path.write_text(json.dumps(body, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(body, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         print(f"wrote {path.name} ({fetched.source.value})")
     for warning in result.warnings:
         print(f"warning [{warning.code}]: {warning.message}")
-    print(f"Spent {result.live_calls} credit(s); {result.cache_hits} served from cache.")
+    print(
+        f"Spent {result.live_calls} credit(s); {result.cache_hits} served from cache."
+    )
     return 0 if result.complete else 1
 
 

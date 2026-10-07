@@ -21,8 +21,9 @@ Create Date: 2026-10-07
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0005"
 down_revision: str | None = "0004"
@@ -34,7 +35,9 @@ SHA256_HEX = "'^[0-9a-f]{64}$'"
 
 def _sentiment() -> postgresql.ENUM:
     """Reference the enum created by 0001 (values are literal so this file never drifts)."""
-    return postgresql.ENUM("positive", "neutral", "negative", name="sentiment", create_type=False)
+    return postgresql.ENUM(
+        "positive", "neutral", "negative", name="sentiment", create_type=False
+    )
 
 
 def upgrade() -> None:
@@ -48,13 +51,22 @@ def upgrade() -> None:
         sa.Column("negative_prob", sa.REAL(), nullable=False),
         sa.Column("is_about_brand", sa.Boolean(), nullable=False),
         sa.Column(
-            "matched_terms", postgresql.ARRAY(sa.Text()), server_default=empty_array, nullable=False
+            "matched_terms",
+            postgresql.ARRAY(sa.Text()),
+            server_default=empty_array,
+            nullable=False,
         ),
         sa.Column(
-            "topics", postgresql.ARRAY(sa.Text()), server_default=empty_array, nullable=False
+            "topics",
+            postgresql.ARRAY(sa.Text()),
+            server_default=empty_array,
+            nullable=False,
         ),
         sa.Column(
-            "keywords", postgresql.ARRAY(sa.Text()), server_default=empty_array, nullable=False
+            "keywords",
+            postgresql.ARRAY(sa.Text()),
+            server_default=empty_array,
+            nullable=False,
         ),
         sa.Column("model", sa.Text(), nullable=False),
         sa.Column("analyzer_version", sa.Text(), nullable=False),
@@ -69,14 +81,19 @@ def upgrade() -> None:
             name=op.f("ck_content_analysis_sentiment_score_range"),
         ),
         sa.CheckConstraint(
-            "negative_prob BETWEEN 0 AND 1", name=op.f("ck_content_analysis_negative_prob_range")
+            "negative_prob BETWEEN 0 AND 1",
+            name=op.f("ck_content_analysis_negative_prob_range"),
         ),
         sa.CheckConstraint(
-            f"content_hash ~ {SHA256_HEX}", name=op.f("ck_content_analysis_content_hash_sha256_hex")
+            f"content_hash ~ {SHA256_HEX}",
+            name=op.f("ck_content_analysis_content_hash_sha256_hex"),
         ),
-        sa.CheckConstraint("model ~ '\\S'", name=op.f("ck_content_analysis_model_not_blank")),
         sa.CheckConstraint(
-            "analyzer_version ~ '\\S'", name=op.f("ck_content_analysis_analyzer_version_not_blank")
+            "model ~ '\\S'", name=op.f("ck_content_analysis_model_not_blank")
+        ),
+        sa.CheckConstraint(
+            "analyzer_version ~ '\\S'",
+            name=op.f("ck_content_analysis_analyzer_version_not_blank"),
         ),
         sa.ForeignKeyConstraint(
             ["content_id"],
@@ -100,12 +117,19 @@ def upgrade() -> None:
         sa.Column("sentiment", _sentiment(), nullable=False),
         sa.Column("negative_prob", sa.REAL(), nullable=False),
         sa.Column("score", sa.REAL(), nullable=False),
-        sa.CheckConstraint("aspect ~ '\\S'", name=op.f("ck_item_aspects_aspect_not_blank")),
-        sa.CheckConstraint("clause ~ '\\S'", name=op.f("ck_item_aspects_clause_not_blank")),
         sa.CheckConstraint(
-            "negative_prob BETWEEN 0 AND 1", name=op.f("ck_item_aspects_negative_prob_range")
+            "aspect ~ '\\S'", name=op.f("ck_item_aspects_aspect_not_blank")
         ),
-        sa.CheckConstraint("score BETWEEN -1 AND 1", name=op.f("ck_item_aspects_score_range")),
+        sa.CheckConstraint(
+            "clause ~ '\\S'", name=op.f("ck_item_aspects_clause_not_blank")
+        ),
+        sa.CheckConstraint(
+            "negative_prob BETWEEN 0 AND 1",
+            name=op.f("ck_item_aspects_negative_prob_range"),
+        ),
+        sa.CheckConstraint(
+            "score BETWEEN -1 AND 1", name=op.f("ck_item_aspects_score_range")
+        ),
         sa.ForeignKeyConstraint(
             ["content_id"],
             ["content_items.id"],
@@ -114,7 +138,9 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("content_id", "aspect", name=op.f("pk_item_aspects")),
     )
-    op.create_index("ix_item_aspects_aspect_sentiment", "item_aspects", ["aspect", "sentiment"])
+    op.create_index(
+        "ix_item_aspects_aspect_sentiment", "item_aspects", ["aspect", "sentiment"]
+    )
 
 
 def downgrade() -> None:

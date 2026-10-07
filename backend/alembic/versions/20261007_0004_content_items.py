@@ -25,8 +25,9 @@ Create Date: 2026-10-07
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0004"
 down_revision: str | None = "0003"
@@ -53,7 +54,9 @@ def upgrade() -> None:
         sa.Column("analysis_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column(
-            "purpose", _enum("content_purpose", "collection", "investigation"), nullable=False
+            "purpose",
+            _enum("content_purpose", "collection", "investigation"),
+            nullable=False,
         ),
         sa.Column("window", _enum("window_kind", "baseline", "current"), nullable=True),
         sa.Column(
@@ -94,14 +97,20 @@ def upgrade() -> None:
             "engine IN ('google', 'google_news', 'google_forums', 'youtube')",
             name=op.f("ck_content_items_engine_allowed"),
         ),
-        sa.CheckConstraint("title ~ '\\S'", name=op.f("ck_content_items_title_not_blank")),
-        sa.CheckConstraint("url ~ '\\S'", name=op.f("ck_content_items_url_not_blank")),
-        sa.CheckConstraint("domain ~ '\\S'", name=op.f("ck_content_items_domain_not_blank")),
         sa.CheckConstraint(
-            f"url_hash ~ {SHA256_HEX}", name=op.f("ck_content_items_url_hash_sha256_hex")
+            "title ~ '\\S'", name=op.f("ck_content_items_title_not_blank")
+        ),
+        sa.CheckConstraint("url ~ '\\S'", name=op.f("ck_content_items_url_not_blank")),
+        sa.CheckConstraint(
+            "domain ~ '\\S'", name=op.f("ck_content_items_domain_not_blank")
         ),
         sa.CheckConstraint(
-            f"content_hash ~ {SHA256_HEX}", name=op.f("ck_content_items_content_hash_sha256_hex")
+            f"url_hash ~ {SHA256_HEX}",
+            name=op.f("ck_content_items_url_hash_sha256_hex"),
+        ),
+        sa.CheckConstraint(
+            f"content_hash ~ {SHA256_HEX}",
+            name=op.f("ck_content_items_content_hash_sha256_hex"),
         ),
         sa.CheckConstraint(
             f"dup_group IS NULL OR dup_group ~ {SHA256_HEX}",
@@ -138,7 +147,9 @@ def upgrade() -> None:
         ["analysis_id", "brand_id", "window"],
     )
     op.create_index(
-        "ix_content_items_analysis_source_type", "content_items", ["analysis_id", "source_type"]
+        "ix_content_items_analysis_source_type",
+        "content_items",
+        ["analysis_id", "source_type"],
     )
     op.create_index("ix_content_items_content_hash", "content_items", ["content_hash"])
     op.create_index(
@@ -147,7 +158,9 @@ def upgrade() -> None:
         ["analysis_id", "brand_id", "url_hash"],
     )
     op.create_index(
-        "ix_content_items_analysis_dup_group", "content_items", ["analysis_id", "dup_group"]
+        "ix_content_items_analysis_dup_group",
+        "content_items",
+        ["analysis_id", "dup_group"],
     )
 
 

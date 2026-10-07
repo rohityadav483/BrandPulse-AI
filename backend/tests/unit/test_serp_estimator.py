@@ -7,7 +7,11 @@ from app.schemas.serp import UsagePurpose
 from app.services.serpapi.cache import ResponseCache
 from app.services.serpapi.estimator import estimate_plan
 from app.services.serpapi.query_planner import build_plan
-from app.services.serpapi.testing import InMemoryCacheStore, InMemoryUsageStore, block_network
+from app.services.serpapi.testing import (
+    InMemoryCacheStore,
+    InMemoryUsageStore,
+    block_network,
+)
 from app.services.serpapi.usage import MonthlyQuota
 
 NOW = datetime(2026, 10, 6, tzinfo=UTC)
@@ -92,7 +96,9 @@ def test_reserve_blocks_when_new_calls_would_dip_below_it():
 
 def test_access_code_only_needed_for_new_calls():
     plan, cache, quota = setup()
-    assert estimate_plan(plan, cache, quota.snapshot(), access_code_required=True).needs_access_code
+    assert estimate_plan(
+        plan, cache, quota.snapshot(), access_code_required=True
+    ).needs_access_code
     assert not estimate_plan(plan, cache, quota.snapshot()).needs_access_code
 
 

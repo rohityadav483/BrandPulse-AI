@@ -45,8 +45,12 @@ class ContentItem(BaseModel):
 
     @model_validator(mode="after")
     def _date_matches_confidence(self) -> Self:
-        if (self.published_at is None) != (self.date_confidence is DateConfidence.unknown):
-            raise ValueError("published_at is None exactly when date_confidence is unknown")
+        if (self.published_at is None) != (
+            self.date_confidence is DateConfidence.unknown
+        ):
+            raise ValueError(
+                "published_at is None exactly when date_confidence is unknown"
+            )
         if self.purpose is ContentPurpose.investigation and self.window is not None:
             raise ValueError("investigation items have no window")
         return self
@@ -73,7 +77,9 @@ class DropReason(enum.StrEnum):
     invalid_url = "invalid_url"  # not an http(s) URL with a host
     duplicate_content_hash = "duplicate_content_hash"  # same normalized title + snippet
     duplicate_url = "duplicate_url"  # same canonical URL
-    already_stored = "already_stored"  # hash already in content_items for this analysis + brand
+    already_stored = (
+        "already_stored"  # hash already in content_items for this analysis + brand
+    )
 
 
 class DroppedRaw(BaseModel):
@@ -87,7 +93,9 @@ class ProcessingStats(BaseModel):
     raw_in: int = 0
     kept: int = 0
     dropped: int = 0
-    near_duplicate_groups: int = 0  # groups of kept items that share a dup_group (size >= 2)
+    near_duplicate_groups: int = (
+        0  # groups of kept items that share a dup_group (size >= 2)
+    )
     date_exact: int = 0
     date_approximate: int = 0
     date_unknown: int = 0
@@ -111,7 +119,9 @@ class ProcessingRunResult(BaseModel):
     raw_read: int = 0
     kept: int = 0
     inserted: int = 0
-    db_duplicates: int = 0  # kept items the unique index still skipped (concurrent re-run)
+    db_duplicates: int = (
+        0  # kept items the unique index still skipped (concurrent re-run)
+    )
     dropped: list[DroppedRaw] = Field(default_factory=list)
     stats: ProcessingStats = Field(default_factory=ProcessingStats)
 

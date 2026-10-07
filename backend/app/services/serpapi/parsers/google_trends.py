@@ -45,7 +45,9 @@ def parse_google_trends(response: Mapping[str, Any]) -> ParsedResponse:
                 terms.append(term)
             values[term] = _value(entry)
         points.append(
-            TrendPoint(date_raw=label, timestamp=as_int(row.get("timestamp")), values=values)
+            TrendPoint(
+                date_raw=label, timestamp=as_int(row.get("timestamp")), values=values
+            )
         )
 
     averages: dict[str, int] = {}
@@ -58,4 +60,6 @@ def parse_google_trends(response: Mapping[str, Any]) -> ParsedResponse:
                 terms.append(term)
 
     series = TrendSeries(terms=terms, points=points, averages=averages)
-    return ParsedResponse(engine=SerpEngine.google_trends, trends=series, skipped=skipped)
+    return ParsedResponse(
+        engine=SerpEngine.google_trends, trends=series, skipped=skipped
+    )

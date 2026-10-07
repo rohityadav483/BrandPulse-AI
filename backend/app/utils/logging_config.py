@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import sys
 from contextvars import ContextVar
 from datetime import UTC, datetime
@@ -15,6 +16,22 @@ _STANDARD_ATTRS = set(vars(logging.makeLogRecord({}))) | {
     "request_id",
     "color_message",
 }
+
+
+_SENSITIVE = ("api_key", "access_code", "authorization", "password", "secret", "token")
+_URL_PASSWORD = re.compile(r"(://[^:/@\s]+:)([^@/\s]+)(@)")
+
+
+def _safe_log_value(key: str, value: object) -> object:
+    if any(part in key.casefold() for part in _SENSITIVE):
+        return "[REDACTED]"
+    if isinstance(value, str):
+        value = _URL_PASSWORD.sub(r"\1[REDACTED]\3", value)
+    if isinstance(value, dict):
+        return {str(k): _safe_log_value(str(k), v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_safe_log_value(key, v) for v in value]
+    return value
 
 
 class RequestIdFilter(logging.Filter):
@@ -36,9 +53,11 @@ class JsonFormatter(logging.Formatter):
             payload["request_id"] = request_id
         for key, value in record.__dict__.items():
             if key not in _STANDARD_ATTRS and not key.startswith("_"):
-                payload[key] = value
+                payload[key] = _safe_log_value(key, value)
         if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
+            payload["exception"] = _safe_log_value(
+                "exception", self.formatException(record.exc_info)
+            )
         return json.dumps(payload, default=str)
 
 

@@ -18,7 +18,9 @@ class SerpUsageRepository:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
 
-    def monthly_credits(self, account_label: str, start: datetime, end: datetime) -> int:
+    def monthly_credits(
+        self, account_label: str, start: datetime, end: datetime
+    ) -> int:
         """sum(credits) for one account label in [start, end)."""
         statement = select(func.coalesce(func.sum(SerpUsage.credits), 0)).where(
             SerpUsage.account_label == account_label,

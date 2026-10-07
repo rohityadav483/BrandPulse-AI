@@ -21,8 +21,9 @@ Create Date: 2026-10-07
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0003"
 down_revision: str | None = "0002"
@@ -47,7 +48,9 @@ def upgrade() -> None:
         sa.Column("analysis_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column(
-            "purpose", _enum("content_purpose", "collection", "investigation"), nullable=False
+            "purpose",
+            _enum("content_purpose", "collection", "investigation"),
+            nullable=False,
         ),
         sa.Column("window", _enum("window_kind", "baseline", "current"), nullable=True),
         sa.Column(
@@ -85,7 +88,8 @@ def upgrade() -> None:
         sa.CheckConstraint("title ~ '\\S'", name=op.f("ck_raw_items_title_not_blank")),
         sa.CheckConstraint("url ~ '\\S'", name=op.f("ck_raw_items_url_not_blank")),
         sa.CheckConstraint(
-            "position IS NULL OR position >= 1", name=op.f("ck_raw_items_position_positive")
+            "position IS NULL OR position >= 1",
+            name=op.f("ck_raw_items_position_positive"),
         ),
         sa.CheckConstraint(
             "raw_key ~ '^[0-9a-f]{64}$'", name=op.f("ck_raw_items_raw_key_sha256_hex")
@@ -113,7 +117,9 @@ def upgrade() -> None:
         unique=True,
     )
     op.create_index(
-        "ix_raw_items_analysis_brand_window", "raw_items", ["analysis_id", "brand_id", "window"]
+        "ix_raw_items_analysis_brand_window",
+        "raw_items",
+        ["analysis_id", "brand_id", "window"],
     )
     op.create_index(
         "ix_raw_items_analysis_source_type", "raw_items", ["analysis_id", "source_type"]

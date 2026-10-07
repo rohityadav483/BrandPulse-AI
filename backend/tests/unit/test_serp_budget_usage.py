@@ -22,7 +22,9 @@ def _no_network(monkeypatch):
 NOW = datetime(2026, 10, 6, 9, 0, tzinfo=UTC)
 
 
-def quota(store=None, *, label="acct-a", limit=250, reserve=20, live=True, clock=lambda: NOW):
+def quota(
+    store=None, *, label="acct-a", limit=250, reserve=20, live=True, clock=lambda: NOW
+):
     return MonthlyQuota(
         store or InMemoryUsageStore(),
         account_label=label,

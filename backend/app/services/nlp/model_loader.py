@@ -54,7 +54,9 @@ class _TorchClassifier:
         self._torch = torch_module
         self._max_length = max_length
         id2label = model.config.id2label
-        self.labels: tuple[str, ...] = tuple(str(id2label[i]) for i in range(len(id2label)))
+        self.labels: tuple[str, ...] = tuple(
+            str(id2label[i]) for i in range(len(id2label))
+        )
 
     def predict_proba(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:
@@ -88,10 +90,17 @@ def load_sequence_classifier(config: ClassifierConfig) -> SequenceClassifier:
             'install them with `pip install -e ".[nlp]"`'
         ) from exc
     try:
-        options = {"cache_dir": config.cache_dir, "local_files_only": config.local_files_only}
+        options = {
+            "cache_dir": config.cache_dir,
+            "local_files_only": config.local_files_only,
+        }
         tokenizer = AutoTokenizer.from_pretrained(config.model_id, **options)
-        model = AutoModelForSequenceClassification.from_pretrained(config.model_id, **options)
-    except Exception as exc:  # hub, disk, network and format errors all mean "unavailable"
+        model = AutoModelForSequenceClassification.from_pretrained(
+            config.model_id, **options
+        )
+    except (
+        Exception
+    ) as exc:  # hub, disk, network and format errors all mean "unavailable"
         raise ModelUnavailableError(
             f"could not load sentiment model {config.model_id!r}: {exc}"
         ) from exc

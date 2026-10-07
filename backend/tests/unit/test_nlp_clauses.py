@@ -52,7 +52,10 @@ def test_contrast_words_split_and_are_removed(text, expected):
 
 @pytest.mark.parametrize("word", ["BUT", "But", "bUt"])
 def test_contrast_is_case_insensitive_and_text_case_is_kept(word):
-    assert texts(f"Camera is Great {word} Battery is Bad") == ["Camera is Great", "Battery is Bad"]
+    assert texts(f"Camera is Great {word} Battery is Bad") == [
+        "Camera is Great",
+        "Battery is Bad",
+    ]
 
 
 def test_comma_before_contrast_word_is_trimmed():
@@ -81,9 +84,15 @@ def test_several_contrasts_in_one_sentence():
 @pytest.mark.parametrize(
     "text,expected",
     [
-        ("Great screen, while the battery is poor", ["Great screen", "the battery is poor"]),
+        (
+            "Great screen, while the battery is poor",
+            ["Great screen", "the battery is poor"],
+        ),
         ("Cheap, yet very fast", ["Cheap", "very fast"]),
-        ("Phone is great, YET the battery is bad", ["Phone is great", "the battery is bad"]),
+        (
+            "Phone is great, YET the battery is bad",
+            ["Phone is great", "the battery is bad"],
+        ),
     ],
 )
 def test_while_and_yet_split_only_after_a_comma(text, expected):
@@ -135,7 +144,10 @@ def test_ellipsis_and_semicolon_and_newline_split():
         "Battery drains fast",
         "camera is fine",
     ]
-    assert texts("Battery drains fast… camera is fine") == ["Battery drains fast", "camera is fine"]
+    assert texts("Battery drains fast… camera is fine") == [
+        "Battery drains fast",
+        "camera is fine",
+    ]
     assert texts("Battery bad; camera good") == ["Battery bad", "camera good"]
     assert texts("Battery bad\nCamera good") == ["Battery bad", "Camera good"]
 
@@ -164,7 +176,9 @@ def test_sentence_index_skips_sentences_that_produce_no_clause():
     assert [(c.text, c.sentence_index) for c in clauses] == [("Good", 0), ("Bad", 1)]
 
 
-@pytest.mark.parametrize("value", [None, "", "   ", "\n\t", "...", "!!!", "But", "However,", ", ;"])
+@pytest.mark.parametrize(
+    "value", [None, "", "   ", "\n\t", "...", "!!!", "But", "However,", ", ;"]
+)
 def test_nothing_to_split_gives_no_clauses(value):
     assert split_clauses(value) == []
 

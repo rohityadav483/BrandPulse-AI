@@ -36,15 +36,15 @@ def make_client(make_settings):
 
 # ---------- Phase 3.2 helpers: StoredRawItem builders (no DB, no network) ----------
 
-import json  # noqa: E402
-import uuid  # noqa: E402
-from datetime import UTC, datetime  # noqa: E402
-from pathlib import Path  # noqa: E402
+import json
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
-from app.schemas.domain import ContentPurpose, WindowKind  # noqa: E402
-from app.schemas.serp import QuerySpec, RawItem, SerpEngine, StoredRawItem  # noqa: E402
-from app.services.serpapi.cache import cache_key as _serp_cache_key  # noqa: E402
-from app.services.serpapi.parsers import parse_response  # noqa: E402
+from app.schemas.domain import ContentPurpose, WindowKind
+from app.schemas.serp import QuerySpec, RawItem, SerpEngine, StoredRawItem
+from app.services.serpapi.cache import cache_key as _serp_cache_key
+from app.services.serpapi.parsers import parse_response
 
 SERP_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "serpapi"
 CONTENT_FIXTURE_FILES = {
@@ -89,7 +89,9 @@ def stored_raw():
 def fixture_raw_items():
     """Factory: engine -> the RawItems its synthetic fixture parses to."""
 
-    def _load(engine: SerpEngine, query: str = "Samsung Galaxy S25 Ultra") -> list[RawItem]:
+    def _load(
+        engine: SerpEngine, query: str = "Samsung Galaxy S25 Ultra"
+    ) -> list[RawItem]:
         param = "search_query" if engine is SerpEngine.youtube else "q"
         spec = QuerySpec(engine=engine, params={param: query})
         response = json.loads(

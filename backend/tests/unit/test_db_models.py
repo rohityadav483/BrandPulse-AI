@@ -2,9 +2,9 @@ import io
 from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.config import Config
 
+from alembic import command
 from app.db.models import Analysis, AnalysisBrand, Base, Brand
 from app.db.models.enums import AnalysisStage, AnalysisStatus, BrandRole
 
@@ -18,7 +18,7 @@ def _cfg(url: str | None = None) -> Config:
     return cfg
 
 
-def test_metadata_has_only_phase_0_to_4_2_tables():
+def test_metadata_has_phase_5_and_7_tables():
     assert set(Base.metadata.tables) == {
         "brands",
         "analyses",
@@ -29,6 +29,12 @@ def test_metadata_has_only_phase_0_to_4_2_tables():
         "content_items",
         "content_analysis",
         "item_aspects",
+        "trend_points",
+        "brand_snapshots",
+        "signals",
+        "investigations",
+        "evidence",
+        "recommendations",
     }
     assert Brand.__tablename__ == "brands"
     assert Analysis.__tablename__ == "analyses"
@@ -105,7 +111,9 @@ def test_offline_sql_generation_needs_no_database():
     assert "CREATE TABLE content_items" in sql
     assert "CREATE TABLE content_analysis" in sql
     assert "CREATE TABLE item_aspects" in sql
-    assert "CREATE TABLE trend_points" not in sql  # later phases are not created yet
+    assert "CREATE TABLE trend_points" in sql
+    assert "CREATE TABLE brand_snapshots" in sql
+    assert "CREATE TABLE signals" in sql
 
 
 def test_serp_cache_columns_and_pk():

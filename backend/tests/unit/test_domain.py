@@ -53,7 +53,9 @@ def test_database_md_table_was_parsed():
 def test_enum_values_match_database_md(pg_name):
     expected = DOC_ENUMS[pg_name]
     if pg_name == "signal_kind":
-        expected = expected[:1]  # `topic_surge` is documented as reserved, not in the MVP
+        expected = expected[
+            :1
+        ]  # `topic_surge` is documented as reserved, not in the MVP
     assert [m.value for m in PG_ENUMS[pg_name]] == expected
 
 
@@ -102,4 +104,6 @@ def test_api_only_vocabularies():
         "daily_limit_reached",
     ]
     assert "trends" in {m.value for m in domain.CoverageSourceType}
-    assert {m.value for m in domain.SourceType} < {m.value for m in domain.CoverageSourceType}
+    assert {m.value for m in domain.SourceType} < {
+        m.value for m in domain.CoverageSourceType
+    }

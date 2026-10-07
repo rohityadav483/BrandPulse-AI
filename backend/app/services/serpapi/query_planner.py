@@ -22,7 +22,12 @@ Date encoding per engine is an assumption until the first live session verifies 
 
 from datetime import date, timedelta
 
-from app.schemas.domain import MAX_COMPETITORS, PERIOD_DAYS_CHOICES, BrandRole, WindowKind
+from app.schemas.domain import (
+    MAX_COMPETITORS,
+    PERIOD_DAYS_CHOICES,
+    BrandRole,
+    WindowKind,
+)
 from app.schemas.serp import PlannedCall, QuerySpec, SerpEngine, SerpPlan, WindowSet
 
 HL = "en"
@@ -77,11 +82,15 @@ def web_spec(query: str, start: date, end: date) -> QuerySpec:
 def news_spec(query: str, start: date, end: date) -> QuerySpec:
     # `before:` is exclusive, so the inclusive window end becomes end + 1 day.
     dated = f"{query} after:{start.isoformat()} before:{(end + timedelta(days=1)).isoformat()}"
-    return QuerySpec(engine=SerpEngine.google_news, params={"q": dated, "hl": HL, "gl": GL})
+    return QuerySpec(
+        engine=SerpEngine.google_news, params={"q": dated, "hl": HL, "gl": GL}
+    )
 
 
 def forums_spec(query: str) -> QuerySpec:
-    return QuerySpec(engine=SerpEngine.google_forums, params={"q": query, "hl": HL, "gl": GL})
+    return QuerySpec(
+        engine=SerpEngine.google_forums, params={"q": query, "hl": HL, "gl": GL}
+    )
 
 
 def youtube_spec(query: str) -> QuerySpec:
@@ -123,7 +132,9 @@ def build_plan(
     target = names[0]
     current, baseline = WindowKind.current, WindowKind.baseline
 
-    def call(spec: QuerySpec, name: str, role: BrandRole, window: WindowKind | None) -> PlannedCall:
+    def call(
+        spec: QuerySpec, name: str, role: BrandRole, window: WindowKind | None
+    ) -> PlannedCall:
         return PlannedCall(spec=spec, brand=name, role=role, window=window)
 
     cur_range = (windows.current_start, windows.current_end)
@@ -135,11 +146,18 @@ def build_plan(
         call(web_spec(review_query, *base_range), target, BrandRole.target, baseline),
         call(forums_spec(subject), target, BrandRole.target, current),
         call(youtube_spec(subject), target, BrandRole.target, current),
-        call(trends_spec(names[:TRENDS_MAX_TERMS], windows), target, BrandRole.target, None),
+        call(
+            trends_spec(names[:TRENDS_MAX_TERMS], windows),
+            target,
+            BrandRole.target,
+            None,
+        ),
     ]
     for rival in names[1:]:
         rival_web = web_spec(f"{rival} review problems", *cur_range)
-        calls.append(call(news_spec(rival, *cur_range), rival, BrandRole.competitor, current))
+        calls.append(
+            call(news_spec(rival, *cur_range), rival, BrandRole.competitor, current)
+        )
         calls.append(call(rival_web, rival, BrandRole.competitor, current))
 
     return SerpPlan(windows=windows, calls=calls[:max_calls], dropped=calls[max_calls:])

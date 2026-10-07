@@ -12,7 +12,10 @@ from app.schemas.nlp import (
     NewItemAnalysis,
     ReuseTarget,
 )
-from app.services.nlp.analyzer_version import analyzer_version_for, build_analyzer_version
+from app.services.nlp.analyzer_version import (
+    analyzer_version_for,
+    build_analyzer_version,
+)
 from app.services.nlp.clauses import CLAUSE_RULES_VERSION
 from app.services.nlp.item_analysis import ItemText, analyze_items, full_text
 from app.services.nlp.keywords import KEYWORD_RULES_VERSION
@@ -48,7 +51,10 @@ def test_camera_amazing_but_battery_terrible():
         StubSentimentAnalyzer(),
     )
     aspects = {a.aspect: a for a in analysis.aspects}
-    assert analysis.is_about_brand and analysis.matched_terms == ("Samsung", "Galaxy S25 Ultra")
+    assert analysis.is_about_brand and analysis.matched_terms == (
+        "Samsung",
+        "Galaxy S25 Ultra",
+    )
     assert aspects["camera"].sentiment is domain.Sentiment.positive
     assert aspects["camera"].clause == "The camera is amazing"
     assert aspects["battery"].sentiment is domain.Sentiment.negative
@@ -120,7 +126,9 @@ def test_analyzer_returning_the_wrong_number_of_results_is_an_error():
 
 def test_item_without_aspects_has_none():
     (analysis,) = analyze_items(
-        [ItemText("Samsung announces event", "Next week")], SAMSUNG, StubSentimentAnalyzer()
+        [ItemText("Samsung announces event", "Next week")],
+        SAMSUNG,
+        StubSentimentAnalyzer(),
     )
     assert analysis.is_about_brand and analysis.aspects == ()
 
@@ -128,7 +136,9 @@ def test_item_without_aspects_has_none():
 def test_category_selects_the_lexicon():
     item = ItemText("Samsung support", "Delivery was late")
     generic = analyze_items([item], SAMSUNG, StubSentimentAnalyzer(), "generic")[0]
-    electronics = analyze_items([item], SAMSUNG, StubSentimentAnalyzer(), "consumer_electronics")[0]
+    electronics = analyze_items(
+        [item], SAMSUNG, StubSentimentAnalyzer(), "consumer_electronics"
+    )[0]
     assert "delivery" in {a.aspect for a in generic.aspects}
     assert "delivery" not in {a.aspect for a in electronics.aspects}
     assert generic.analyzer_version != electronics.analyzer_version
@@ -136,7 +146,11 @@ def test_category_selects_the_lexicon():
 
 def test_keywords_and_topics_are_filled_for_relevant_items():
     (analysis,) = analyze_items(
-        [ItemText("Samsung camera great", "Battery drain after the update, battery drain")],
+        [
+            ItemText(
+                "Samsung camera great", "Battery drain after the update, battery drain"
+            )
+        ],
         SAMSUNG,
         StubSentimentAnalyzer(),
     )
@@ -150,7 +164,9 @@ def test_keywords_and_topics_are_filled_for_relevant_items():
 
 def test_irrelevant_items_get_no_keywords_or_topics():
     (analysis,) = analyze_items(
-        [ItemText("Weather today", "Sunny with light wind")], SAMSUNG, StubSentimentAnalyzer()
+        [ItemText("Weather today", "Sunny with light wind")],
+        SAMSUNG,
+        StubSentimentAnalyzer(),
     )
     assert analysis.keywords == () and analysis.topics == ()
 
@@ -159,7 +175,9 @@ def test_keywords_do_not_depend_on_the_rest_of_the_batch():
     item = ItemText("Samsung camera great", "battery terrible after the update")
     alone = analyze_items([item], SAMSUNG, StubSentimentAnalyzer())[0]
     batched = analyze_items(
-        [ItemText("Samsung display awful", "bright"), item], SAMSUNG, StubSentimentAnalyzer()
+        [ItemText("Samsung display awful", "bright"), item],
+        SAMSUNG,
+        StubSentimentAnalyzer(),
     )[1]
     assert (alone.keywords, alone.topics) == (batched.keywords, batched.topics)
 
@@ -192,16 +210,10 @@ def test_analysis_is_deterministic():
 
 def test_version_is_model_plus_lexicon_plus_rules_plus_category():
     version = build_analyzer_version("org/m")
-    assert version == "|".join(
-        [
-            "org/m",
-            LEXICON_VERSION,
-            CLAUSE_RULES_VERSION,
-            RELEVANCE_RULES_VERSION,
-            KEYWORD_RULES_VERSION,
-            TOPIC_RULES_VERSION,
-            "consumer_electronics",
-        ]
+    assert version == (
+        f"org/m|{LEXICON_VERSION}|{CLAUSE_RULES_VERSION}|"
+        f"{RELEVANCE_RULES_VERSION}|{KEYWORD_RULES_VERSION}|"
+        f"{TOPIC_RULES_VERSION}|consumer_electronics"
     )
 
 
@@ -324,7 +336,9 @@ def test_hash_must_be_lowercase_sha256_hex(bad_hash):
     import uuid
 
     with pytest.raises(ValidationError):
-        NewItemAnalysis(content_id=uuid.uuid4(), content_hash=bad_hash, analysis=analysis())
+        NewItemAnalysis(
+            content_id=uuid.uuid4(), content_hash=bad_hash, analysis=analysis()
+        )
     with pytest.raises(ValidationError):
         ReuseTarget(content_id=uuid.uuid4(), content_hash=bad_hash)
 

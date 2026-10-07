@@ -10,7 +10,11 @@ from app.schemas.serp import SerpEngine
 RESULT_LIST_KEYS: dict[SerpEngine, tuple[str, ...]] = {
     SerpEngine.google: ("organic_results",),
     SerpEngine.google_news: ("news_results",),
-    SerpEngine.google_forums: ("organic_results", "forum_results", "discussions_and_forums"),
+    SerpEngine.google_forums: (
+        "organic_results",
+        "forum_results",
+        "discussions_and_forums",
+    ),
     SerpEngine.youtube: ("video_results",),
 }
 
@@ -61,10 +65,14 @@ def as_int(value: Any) -> int | None:
 
 def compact(**fields: Any) -> dict[str, Any]:
     """Keep only fields that carry a value (metadata stays small and JSON-safe)."""
-    return {key: value for key, value in fields.items() if value not in (None, "", [], {})}
+    return {
+        key: value for key, value in fields.items() if value not in (None, "", [], {})
+    }
 
 
-def rows(response: Mapping[str, Any], keys: tuple[str, ...]) -> tuple[list[dict[str, Any]], int]:
+def rows(
+    response: Mapping[str, Any], keys: tuple[str, ...]
+) -> tuple[list[dict[str, Any]], int]:
     """Dict rows from the first non-empty list under `keys`, plus the count of non-dict rows."""
     for key in keys:
         raw = response.get(key)

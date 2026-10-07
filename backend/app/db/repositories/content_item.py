@@ -21,7 +21,11 @@ from app.db.models.content_item import ContentItemRow
 from app.schemas.domain import ContentPurpose, SourceType, WindowKind
 from app.schemas.processing import ContentItem, ContentWriteResult, StoredContentItem
 
-_IDENTITY = [ContentItemRow.analysis_id, ContentItemRow.brand_id, ContentItemRow.content_hash]
+_IDENTITY = [
+    ContentItemRow.analysis_id,
+    ContentItemRow.brand_id,
+    ContentItemRow.content_hash,
+]
 
 
 def _values(analysis_id: uuid.UUID, brand_id: uuid.UUID, item: ContentItem) -> dict:
@@ -199,7 +203,9 @@ class ContentItemRepository:
         with Session(self._engine) as session:
             return session.execute(statement).scalar_one()
 
-    def count_dup_groups(self, analysis_id: uuid.UUID, *, brand_id: uuid.UUID | None = None) -> int:
+    def count_dup_groups(
+        self, analysis_id: uuid.UUID, *, brand_id: uuid.UUID | None = None
+    ) -> int:
         """Distinct `dup_group` values (independent sources) among an analysis' items."""
         statement = select(func.count(func.distinct(ContentItemRow.dup_group))).where(
             ContentItemRow.analysis_id == analysis_id
@@ -245,7 +251,8 @@ class ContentItemRepository:
     ) -> tuple[set[str], set[str]]:
         """Every (content_hash, url_hash) already stored for this analysis and brand."""
         statement = select(ContentItemRow.content_hash, ContentItemRow.url_hash).where(
-            ContentItemRow.analysis_id == analysis_id, ContentItemRow.brand_id == brand_id
+            ContentItemRow.analysis_id == analysis_id,
+            ContentItemRow.brand_id == brand_id,
         )
         with Session(self._engine) as session:
             rows = session.execute(statement).all()

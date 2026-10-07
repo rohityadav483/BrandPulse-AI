@@ -17,8 +17,9 @@ Create Date: 2026-10-06
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0002"
 down_revision: str | None = "0001"
@@ -41,7 +42,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("pinned", sa.Boolean(), server_default=sa.text("false"), nullable=False),
+        sa.Column(
+            "pinned", sa.Boolean(), server_default=sa.text("false"), nullable=False
+        ),
         sa.PrimaryKeyConstraint("cache_key", name=op.f("pk_serp_cache")),
     )
     op.create_index("ix_serp_cache_expires_at", "serp_cache", ["expires_at"])
@@ -64,7 +67,9 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.CheckConstraint("credits BETWEEN 0 AND 1", name=op.f("ck_serp_usage_credits_range")),
+        sa.CheckConstraint(
+            "credits BETWEEN 0 AND 1", name=op.f("ck_serp_usage_credits_range")
+        ),
         sa.CheckConstraint(
             "purpose IN ('analysis', 'investigation', 'fixture_recording', 'probe')",
             name=op.f("ck_serp_usage_purpose_allowed"),

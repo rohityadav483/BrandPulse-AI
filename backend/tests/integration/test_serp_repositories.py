@@ -11,15 +11,21 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
+from alembic import command
 from app.db.repositories.serp_cache import SerpCacheRepository
 from app.db.repositories.serp_usage import SerpUsageRepository
 from app.db.session import normalize_url
-from app.schemas.serp import CacheEntry, QuerySpec, SerpEngine, UsagePurpose, UsageRecord
+from app.schemas.serp import (
+    CacheEntry,
+    QuerySpec,
+    SerpEngine,
+    UsagePurpose,
+    UsageRecord,
+)
 from app.services.serpapi.cache import ResponseCache
 from app.services.serpapi.usage import MonthlyQuota
 
@@ -141,6 +147,10 @@ def test_services_work_end_to_end_over_the_repositories(engine):
         stored = c.execute(text("SELECT response::text FROM serp_cache")).scalar_one()
     assert "SECRET" not in stored
     quota.record(
-        cache_key="k", engine="google", cache_hit=False, credits=1, purpose=UsagePurpose.probe
+        cache_key="k",
+        engine="google",
+        cache_hit=False,
+        credits=1,
+        purpose=UsagePurpose.probe,
     )
     assert quota.snapshot().used == 1 and quota.snapshot().remaining == 249

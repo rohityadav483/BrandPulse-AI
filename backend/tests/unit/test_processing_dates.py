@@ -23,7 +23,11 @@ WINDOWS = WindowSet(
     baseline_start=date(2026, 6, 12),
     baseline_end=date(2026, 7, 11),
 )
-EXACT, APPROX, UNK = DateConfidence.exact, DateConfidence.approximate, DateConfidence.unknown
+EXACT, APPROX, UNK = (
+    DateConfidence.exact,
+    DateConfidence.approximate,
+    DateConfidence.unknown,
+)
 
 
 def at(*args) -> datetime:
@@ -123,13 +127,19 @@ def test_small_future_skew_is_tolerated():
 
 
 def test_naive_reference_is_treated_as_utc():
-    parsed = parse_published("1 day ago", None, datetime(2026, 8, 10, 12))
+    parsed = parse_published(
+        "1 day ago",
+        None,
+        datetime(2026, 8, 10, 12),  # noqa: DTZ001 - intentionally naive to test UTC coercion
+    )
     assert parsed.published_at == REF - timedelta(days=1)
 
 
 def test_relative_dates_follow_the_reference_not_the_calendar():
     later = REF + timedelta(days=30)
-    assert parse_published("3 weeks ago", None, later).published_at == later - timedelta(weeks=3)
+    assert parse_published(
+        "3 weeks ago", None, later
+    ).published_at == later - timedelta(weeks=3)
 
 
 def test_feb_29_without_year_is_unknown_when_neither_candidate_year_is_a_leap_year():

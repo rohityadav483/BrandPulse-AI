@@ -4,6 +4,7 @@ import logging
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +38,10 @@ def check_database(url: str) -> bool:
         with get_engine(url).connect() as conn:
             conn.execute(text("SELECT 1"))
         return True
-    except Exception as exc:
-        logger.warning("database_check_failed", extra={"error_type": type(exc).__name__})
+    except SQLAlchemyError as exc:
+        logger.warning(
+            "database_check_failed", extra={"error_type": type(exc).__name__}
+        )
         return False
 
 

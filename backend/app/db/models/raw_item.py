@@ -48,9 +48,16 @@ class RawItemRow(Base):
         ),
         # Idempotency: the same occurrence is stored once per (analysis, brand, purpose).
         Index(
-            "uq_raw_items_identity", "analysis_id", "brand_id", "purpose", "raw_key", unique=True
+            "uq_raw_items_identity",
+            "analysis_id",
+            "brand_id",
+            "purpose",
+            "raw_key",
+            unique=True,
         ),
-        Index("ix_raw_items_analysis_brand_window", "analysis_id", "brand_id", "window"),
+        Index(
+            "ix_raw_items_analysis_brand_window", "analysis_id", "brand_id", "window"
+        ),
         Index("ix_raw_items_analysis_source_type", "analysis_id", "source_type"),
         Index("ix_raw_items_serp_cache_key", "serp_cache_key"),
     )
@@ -65,7 +72,9 @@ class RawItemRow(Base):
     purpose: Mapped[ContentPurpose] = mapped_column(
         pg_enum(ContentPurpose, "content_purpose"), nullable=False
     )
-    window: Mapped[WindowKind | None] = mapped_column(pg_enum(WindowKind, "window_kind"))
+    window: Mapped[WindowKind | None] = mapped_column(
+        pg_enum(WindowKind, "window_kind")
+    )
     source_type: Mapped[SourceType] = mapped_column(
         pg_enum(SourceType, "source_type"), nullable=False
     )

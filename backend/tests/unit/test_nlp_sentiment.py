@@ -25,12 +25,20 @@ def one(text):
 def test_result_score_is_positive_minus_negative():
     result = SentimentResult(Sentiment.positive, 0.7, 0.2, 0.1)
     assert result.score == pytest.approx(0.6)
-    assert SentimentResult(Sentiment.negative, 0.0, 0.3, 0.7).score == pytest.approx(-0.7)
+    assert SentimentResult(Sentiment.negative, 0.0, 0.3, 0.7).score == pytest.approx(
+        -0.7
+    )
 
 
 @pytest.mark.parametrize(
     "probs",
-    [(0.5, 0.5, 0.5), (0.2, 0.2, 0.2), (-0.1, 0.6, 0.5), (1.2, 0.0, -0.2), (math.nan, 0.5, 0.5)],
+    [
+        (0.5, 0.5, 0.5),
+        (0.2, 0.2, 0.2),
+        (-0.1, 0.6, 0.5),
+        (1.2, 0.0, -0.2),
+        (math.nan, 0.5, 0.5),
+    ],
 )
 def test_result_rejects_invalid_probabilities(probs):
     with pytest.raises(ValueError):
@@ -111,7 +119,11 @@ def test_stub_negation_only_reaches_two_words_back():
 def test_stub_empty_or_wordless_text_is_neutral(text):
     result = one(text)
     assert result.label is Sentiment.neutral
-    assert (result.positive_prob, result.neutral_prob, result.negative_prob) == (0.0, 1.0, 0.0)
+    assert (result.positive_prob, result.neutral_prob, result.negative_prob) == (
+        0.0,
+        1.0,
+        0.0,
+    )
     assert result.score == 0.0
 
 

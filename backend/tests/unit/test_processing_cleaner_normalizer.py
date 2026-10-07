@@ -68,7 +68,10 @@ def test_clean_text_is_idempotent():
         ("https://example.test:8443/a", "https://example.test:8443/a"),
         ("https://example.test/A/B", "https://example.test/A/B"),  # path case kept
         ("https://example.test/a?utm_source=x&utm_medium=y", "https://example.test/a"),
-        ("https://example.test/a?id=2&utm_campaign=c&gclid=z", "https://example.test/a?id=2"),
+        (
+            "https://example.test/a?id=2&utm_campaign=c&gclid=z",
+            "https://example.test/a?id=2",
+        ),
         ("https://example.test/a?b=2&a=1", "https://example.test/a?a=1&b=2"),
         ("https://example.test/a?q=", "https://example.test/a?q="),
         ("  https://example.test/a  ", "https://example.test/a"),
@@ -78,7 +81,10 @@ def test_clean_text_is_idempotent():
             "https://www.youtube.com/watch?v=abc123&feature=share",
             "https://youtube.com/watch?v=abc123",
         ),
-        ("https://m.youtube.com/watch?v=abc123&t=5", "https://youtube.com/watch?v=abc123"),
+        (
+            "https://m.youtube.com/watch?v=abc123&t=5",
+            "https://youtube.com/watch?v=abc123",
+        ),
         (
             "https://www.youtube.example.test/watch?v=mock0001",
             "https://youtube.example.test/watch?v=mock0001",
@@ -180,7 +186,11 @@ def test_content_hash_distinguishes_different_text_and_field_boundaries():
             "Example Daily",
             "samsung s25 battery a real subtitle",
         ),
-        ("Samsung S25 battery - Example Daily", None, "samsung s25 battery example daily"),
+        (
+            "Samsung S25 battery - Example Daily",
+            None,
+            "samsung s25 battery example daily",
+        ),
         ("Samsung S25 battery", "Example Daily", "samsung s25 battery"),
         (None, None, ""),
     ],

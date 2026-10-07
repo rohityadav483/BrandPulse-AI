@@ -32,8 +32,13 @@ def test_every_engine_has_a_parser():
 
 
 def test_google_web():
-    parsed = parse_response(spec_for(SerpEngine.google), load("google_web_samsung_s25_ultra.json"))
-    assert [i.title for i in parsed.items][0] == "Galaxy S25 Ultra review: the good and the bad"
+    parsed = parse_response(
+        spec_for(SerpEngine.google), load("google_web_samsung_s25_ultra.json")
+    )
+    assert (
+        next(i.title for i in parsed.items)
+        == "Galaxy S25 Ultra review: the good and the bad"
+    )
     assert len(parsed.items) == 3
     assert parsed.skipped == 2  # no link, blank title
     first = parsed.items[0]
@@ -73,7 +78,9 @@ def test_google_forums():
 
 
 def test_youtube():
-    parsed = parse_response(spec_for(SerpEngine.youtube), load("youtube_samsung_s25_ultra.json"))
+    parsed = parse_response(
+        spec_for(SerpEngine.youtube), load("youtube_samsung_s25_ultra.json")
+    )
     assert len(parsed.items) == 3 and parsed.skipped == 1
     first, second, third = parsed.items
     assert first.source_type is SourceType.youtube
@@ -86,13 +93,18 @@ def test_youtube():
 
 def test_google_trends():
     parsed = parse_response(
-        spec_for(SerpEngine.google_trends), load("google_trends_samsung_apple_oneplus.json")
+        spec_for(SerpEngine.google_trends),
+        load("google_trends_samsung_apple_oneplus.json"),
     )
     assert parsed.items == []
     series = parsed.trends
     assert series.terms == ["Samsung", "Apple", "OnePlus"]
     assert len(series.points) == 3 and parsed.skipped == 1  # the point without a date
-    assert series.points[0].values == {"Samsung": 61, "Apple": 88, "OnePlus": 0}  # "<1" -> 0
+    assert series.points[0].values == {
+        "Samsung": 61,
+        "Apple": 88,
+        "OnePlus": 0,
+    }  # "<1" -> 0
     assert series.points[2].values["Samsung"] == 100
     assert series.points[0].timestamp == 1780790400
     assert series.averages == {"Samsung": 75, "Apple": 88, "OnePlus": 2}
@@ -107,7 +119,11 @@ def test_no_results_payload_parses_to_empty(engine):
 
 @pytest.mark.parametrize("engine", list(SerpEngine))
 def test_garbage_never_raises(engine):
-    payloads = [{}, {"organic_results": "nope", "news_results": [1, None]}, {"video_results": [[]]}]
+    payloads = [
+        {},
+        {"organic_results": "nope", "news_results": [1, None]},
+        {"video_results": [[]]},
+    ]
     for payload in payloads:
         assert parse_response(spec_for(engine), payload).is_empty
 

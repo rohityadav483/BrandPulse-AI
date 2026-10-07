@@ -40,7 +40,9 @@ class TransportResponse:
 
 
 class SerpTransport(Protocol):
-    def get(self, url: str, params: Mapping[str, str], timeout: float) -> TransportResponse: ...
+    def get(
+        self, url: str, params: Mapping[str, str], timeout: float
+    ) -> TransportResponse: ...
 
 
 # --- errors ------------------------------------------------------------------------------------
@@ -93,7 +95,11 @@ class SerpApiRateLimited(SerpApiClientError):
     retryable = True
 
     def __init__(
-        self, message: str, *, http_status: int | None = 429, retry_after: float | None = None
+        self,
+        message: str,
+        *,
+        http_status: int | None = 429,
+        retry_after: float | None = None,
     ) -> None:
         super().__init__(message, http_status=http_status)
         self.retry_after = retry_after
@@ -120,7 +126,9 @@ class SerpApiNetworkError(SerpApiClientError):
 class UrllibTransport:
     """Standard-library transport. The only place in the codebase that opens a connection."""
 
-    def get(self, url: str, params: Mapping[str, str], timeout: float) -> TransportResponse:
+    def get(
+        self, url: str, params: Mapping[str, str], timeout: float
+    ) -> TransportResponse:
         if not url.startswith("https://"):
             raise SerpApiBadRequest("SerpApi requests must use https")
         request = urllib.request.Request(
@@ -132,7 +140,9 @@ class UrllibTransport:
                 return TransportResponse(handle.status, _decode(handle.read()))
         except urllib.error.HTTPError as exc:
             header = exc.headers.get("Retry-After") if exc.headers else None
-            return TransportResponse(exc.code, _decode(exc.read()), _parse_retry_after(header))
+            return TransportResponse(
+                exc.code, _decode(exc.read()), _parse_retry_after(header)
+            )
         except TimeoutError as exc:
             raise SerpApiTimeout("SerpApi request timed out") from exc
         except urllib.error.URLError as exc:
@@ -198,7 +208,9 @@ class SerpApiClient:
         A "no results" payload is a valid (empty) result, not an error.
         """
         if not self._allow_live:
-            raise SerpApiLiveDisabled("live SerpApi calls are disabled (ALLOW_LIVE_SERPAPI=false)")
+            raise SerpApiLiveDisabled(
+                "live SerpApi calls are disabled (ALLOW_LIVE_SERPAPI=false)"
+            )
         if not self._api_key:
             raise SerpApiNotConfigured("SERPAPI_API_KEY is not set")
 
@@ -220,13 +232,19 @@ class SerpApiClient:
                 delay = self._delay(exc, attempts)
                 logger.warning(
                     "serpapi_retry",
-                    extra={"engine": str(spec.engine), "code": exc.code, "attempt": attempts},
+                    extra={
+                        "engine": str(spec.engine),
+                        "code": exc.code,
+                        "attempt": attempts,
+                    },
                 )
                 self._sleep(delay)
 
     def _delay(self, exc: SerpApiClientError, attempt: int) -> float:
         hinted = exc.retry_after if isinstance(exc, SerpApiRateLimited) else None
-        delay = hinted if hinted is not None else self._backoff_base * 2 ** (attempt - 1)
+        delay = (
+            hinted if hinted is not None else self._backoff_base * 2 ** (attempt - 1)
+        )
         return min(max(delay, 0.0), _MAX_BACKOFF_SECONDS)
 
     @staticmethod
@@ -242,17 +260,25 @@ class SerpApiClient:
                 )
             error = response_error(body)
             if error is not None and not is_no_results_error(error):
-                raise SerpApiResponseError(f"SerpApi error payload: {message}", http_status=status)
+                raise SerpApiResponseError(
+                    f"SerpApi error payload: {message}", http_status=status
+                )
             return body, status
         if status in (401, 403):
-            raise SerpApiAuthError(f"SerpApi rejected the API key: {message}", http_status=status)
+            raise SerpApiAuthError(
+                f"SerpApi rejected the API key: {message}", http_status=status
+            )
         if status == 429:
             if _is_account_exhausted(message):
                 raise SerpApiAccountQuotaExhausted(message, http_status=status)
             raise SerpApiRateLimited(message, retry_after=raw.retry_after)
         if status >= 500:
-            raise SerpApiServerError(f"SerpApi server error: {message}", http_status=status)
-        raise SerpApiBadRequest(f"SerpApi rejected the request: {message}", http_status=status)
+            raise SerpApiServerError(
+                f"SerpApi server error: {message}", http_status=status
+            )
+        raise SerpApiBadRequest(
+            f"SerpApi rejected the request: {message}", http_status=status
+        )
 
 
 def _to_param(value: object) -> str:

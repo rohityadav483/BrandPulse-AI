@@ -45,7 +45,9 @@ def full_text(item: ItemText) -> str:
         return title
     if not title:
         return snippet
-    return f"{title} {snippet}" if title.endswith(_TERMINATORS) else f"{title}. {snippet}"
+    return (
+        f"{title} {snippet}" if title.endswith(_TERMINATORS) else f"{title}. {snippet}"
+    )
 
 
 def _aspect_row(found: AspectClause, result: SentimentResult) -> AspectSentiment:
@@ -73,7 +75,9 @@ def analyze_items(
     overall_slot: dict[int, int] = {}
     aspect_slots: dict[int, list[tuple[AspectClause, int]]] = {}
     item_text: dict[int, str] = {}
-    for position, (item, found_relevance) in enumerate(zip(items, relevance, strict=True)):
+    for position, (item, found_relevance) in enumerate(
+        zip(items, relevance, strict=True)
+    ):
         if not found_relevance.is_about_brand:
             continue
         text = full_text(item)
@@ -88,7 +92,9 @@ def analyze_items(
 
     results = analyzer.analyze(texts) if texts else []
     if len(results) != len(texts):
-        raise ValueError(f"analyzer returned {len(results)} results for {len(texts)} texts")
+        raise ValueError(
+            f"analyzer returned {len(results)} results for {len(texts)} texts"
+        )
 
     analyses: list[ItemAnalysis] = []
     for position, found_relevance in enumerate(relevance):
@@ -109,8 +115,12 @@ def analyze_items(
             _aspect_row(found, results[slot]) for found, slot in aspect_slots[position]
         )
         keywords = extract_keywords(item_text[position], exclude_terms=profile.terms)
-        covered = [term for found, _ in aspect_slots[position] for term in found.matched_terms]
-        topics = derive_topics([row.aspect for row in aspect_rows], keywords, covered_terms=covered)
+        covered = [
+            term for found, _ in aspect_slots[position] for term in found.matched_terms
+        ]
+        topics = derive_topics(
+            [row.aspect for row in aspect_rows], keywords, covered_terms=covered
+        )
         analyses.append(
             ItemAnalysis(
                 sentiment=overall.label,

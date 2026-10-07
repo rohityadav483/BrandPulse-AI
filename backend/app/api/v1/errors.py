@@ -36,8 +36,12 @@ def error_response(
     details: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
 ) -> JSONResponse:
-    body = ErrorResponse(error=ErrorBody(code=code, message=message, details=details or {}))
-    return JSONResponse(status_code=status_code, content=body.model_dump(), headers=headers)
+    body = ErrorResponse(
+        error=ErrorBody(code=code, message=message, details=details or {})
+    )
+    return JSONResponse(
+        status_code=status_code, content=body.model_dump(), headers=headers
+    )
 
 
 def _code_for_status(status_code: int) -> str:
@@ -51,10 +55,14 @@ def _code_for_status(status_code: int) -> str:
 
 
 async def _handle_api_error(request: Request, exc: ApiError) -> JSONResponse:
-    return error_response(exc.status_code, exc.code, exc.message, exc.details, exc.headers)
+    return error_response(
+        exc.status_code, exc.code, exc.message, exc.details, exc.headers
+    )
 
 
-async def _handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def _handle_http_exception(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
     if exc.status_code == 404:
         message = "Resource not found."
     elif isinstance(exc.detail, str) and exc.status_code < 500:
@@ -66,19 +74,25 @@ async def _handle_http_exception(request: Request, exc: StarletteHTTPException) 
     )
 
 
-async def _handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def _handle_validation_error(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     errors = exc.errors()
     if any(e.get("type") == "json_invalid" for e in errors):
         return error_response(400, "bad_request", "Malformed request body.")
     # Never echo the submitted input back; only the field path and the message.
     fields = [
         {
-            "field": ".".join(str(part) for part in e["loc"] if part not in ("body", "query")),
+            "field": ".".join(
+                str(part) for part in e["loc"] if part not in ("body", "query")
+            ),
             "message": e["msg"],
         }
         for e in errors
     ]
-    return error_response(422, "validation_error", "Request validation failed.", {"fields": fields})
+    return error_response(
+        422, "validation_error", "Request validation failed.", {"fields": fields}
+    )
 
 
 async def _handle_unexpected(request: Request, exc: Exception) -> JSONResponse:

@@ -49,9 +49,9 @@ def _joined(
     aspect: str | None,
     sentiment: Sentiment | None,
 ) -> Select:
-    statement = statement.join(ContentItemRow, ContentItemRow.id == ItemAspectRow.content_id).where(
-        ContentItemRow.analysis_id == analysis_id
-    )
+    statement = statement.join(
+        ContentItemRow, ContentItemRow.id == ItemAspectRow.content_id
+    ).where(ContentItemRow.analysis_id == analysis_id)
     if brand_id is not None:
         statement = statement.where(ContentItemRow.brand_id == brand_id)
     if window is not None:
@@ -67,7 +67,9 @@ class ItemAspectRepository:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
 
-    def add_many(self, content_id: uuid.UUID, aspects: Sequence[AspectSentiment]) -> int:
+    def add_many(
+        self, content_id: uuid.UUID, aspects: Sequence[AspectSentiment]
+    ) -> int:
         """Store aspect rows of one item in one transaction. Returns how many were inserted
         (existing `(content_id, aspect)` pairs are skipped)."""
         if not aspects:
@@ -75,7 +77,9 @@ class ItemAspectRepository:
         statement = (
             pg_insert(ItemAspectRow)
             .values([aspect_values(content_id, aspect) for aspect in aspects])
-            .on_conflict_do_nothing(index_elements=[ItemAspectRow.content_id, ItemAspectRow.aspect])
+            .on_conflict_do_nothing(
+                index_elements=[ItemAspectRow.content_id, ItemAspectRow.aspect]
+            )
             .returning(ItemAspectRow.aspect)
         )
         with Session(self._engine) as session, session.begin():

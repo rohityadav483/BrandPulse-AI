@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import REAL, CheckConstraint, DateTime, ForeignKey, Index, Text, func, text
+from sqlalchemy import (
+    REAL,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,13 +32,19 @@ class ContentAnalysisRow(Base):
 
     __tablename__ = "content_analysis"
     __table_args__ = (
-        CheckConstraint("sentiment_score BETWEEN -1 AND 1", name="sentiment_score_range"),
+        CheckConstraint(
+            "sentiment_score BETWEEN -1 AND 1", name="sentiment_score_range"
+        ),
         CheckConstraint("negative_prob BETWEEN 0 AND 1", name="negative_prob_range"),
-        CheckConstraint(f"content_hash ~ {_SHA256_HEX}", name="content_hash_sha256_hex"),
+        CheckConstraint(
+            f"content_hash ~ {_SHA256_HEX}", name="content_hash_sha256_hex"
+        ),
         CheckConstraint("model ~ '\\S'", name="model_not_blank"),
         CheckConstraint("analyzer_version ~ '\\S'", name="analyzer_version_not_blank"),
         Index(
-            "ix_content_analysis_content_hash_analyzer_version", "content_hash", "analyzer_version"
+            "ix_content_analysis_content_hash_analyzer_version",
+            "content_hash",
+            "analyzer_version",
         ),
     )
 
@@ -39,7 +54,9 @@ class ContentAnalysisRow(Base):
         primary_key=True,
     )
     content_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    sentiment: Mapped[Sentiment] = mapped_column(pg_enum(Sentiment, "sentiment"), nullable=False)
+    sentiment: Mapped[Sentiment] = mapped_column(
+        pg_enum(Sentiment, "sentiment"), nullable=False
+    )
     sentiment_score: Mapped[float] = mapped_column(REAL, nullable=False)
     negative_prob: Mapped[float] = mapped_column(REAL, nullable=False)
     is_about_brand: Mapped[bool] = mapped_column(nullable=False)

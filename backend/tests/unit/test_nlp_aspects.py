@@ -42,7 +42,9 @@ def test_consumer_electronics_has_the_required_aspects():
 
 def test_default_category_is_consumer_electronics():
     assert get_lexicon() is get_lexicon(Category.consumer_electronics)
-    assert get_lexicon("consumer_electronics") is get_lexicon(Category.consumer_electronics)
+    assert get_lexicon("consumer_electronics") is get_lexicon(
+        Category.consumer_electronics
+    )
 
 
 def test_generic_preset_is_separate_and_nonempty():
@@ -154,7 +156,9 @@ def test_bare_update_is_not_a_software_term():
 
 
 def test_matching_is_case_insensitive_and_reports_lexicon_terms():
-    assert terms_in_text("BATTERY LIFE is bad") == {"battery": ("battery", "battery life")}
+    assert terms_in_text("BATTERY LIFE is bad") == {
+        "battery": ("battery", "battery life")
+    }
 
 
 def test_matched_terms_are_in_lexicon_order():
@@ -177,7 +181,10 @@ def test_generic_category_uses_its_own_lexicon():
 
 
 def pairs(text, category=Category.consumer_electronics):
-    return [(found.aspect, found.clause.text) for found in detect_aspects_in_text(text, category)]
+    return [
+        (found.aspect, found.clause.text)
+        for found in detect_aspects_in_text(text, category)
+    ]
 
 
 def test_each_aspect_is_mapped_to_its_own_clause():
@@ -202,7 +209,9 @@ def test_one_clause_can_carry_several_aspects():
 
 
 def test_aspect_in_two_clauses_keeps_one_entry_the_richest_clause():
-    found = detect_aspects_in_text("Battery is fine. The battery life and screen on time are bad")
+    found = detect_aspects_in_text(
+        "Battery is fine. The battery life and screen on time are bad"
+    )
     battery = [f for f in found if f.aspect == "battery"]
     assert len(battery) == 1
     assert battery[0].clause.text == "The battery life and screen on time are bad"

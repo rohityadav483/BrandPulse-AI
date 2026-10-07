@@ -86,7 +86,9 @@ def canonical_url(url: str) -> str | None:
         netloc = host
 
     query = [
-        (k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not _is_tracking(k)
+        (k, v)
+        for k, v in parse_qsl(parts.query, keep_blank_values=True)
+        if not _is_tracking(k)
     ]
     path = parts.path or "/"
 

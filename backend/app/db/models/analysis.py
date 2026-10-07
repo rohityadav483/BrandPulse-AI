@@ -61,16 +61,24 @@ class Analysis(Base):
         nullable=False,
         server_default=text("'queued'"),
     )
-    stage: Mapped[AnalysisStage | None] = mapped_column(pg_enum(AnalysisStage, "analysis_stage"))
-    progress: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("0"))
+    stage: Mapped[AnalysisStage | None] = mapped_column(
+        pg_enum(AnalysisStage, "analysis_stage")
+    )
+    progress: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default=text("0")
+    )
     warnings: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")
     )
-    serp_calls_used: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    serp_calls_used: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
     serp_calls_budget: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("12")
     )
-    live_run: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    live_run: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     error: Mapped[str | None] = mapped_column(Text)
     client_ip_hash: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -98,5 +106,9 @@ class AnalysisBrand(Base):
         ForeignKey("analyses.id", ondelete="CASCADE"), primary_key=True
     )
     # brands rows are never cascade-deleted (DATABASE.md section 8).
-    brand_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("brands.id"), primary_key=True)
-    role: Mapped[BrandRole] = mapped_column(pg_enum(BrandRole, "brand_role"), nullable=False)
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("brands.id"), primary_key=True
+    )
+    role: Mapped[BrandRole] = mapped_column(
+        pg_enum(BrandRole, "brand_role"), nullable=False
+    )

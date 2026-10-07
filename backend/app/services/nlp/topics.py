@@ -29,7 +29,9 @@ def derive_topics(
     if isinstance(aspect_names, str) or isinstance(keywords, str):
         raise TypeError("aspect_names and keywords must be sequences of strings")
     if isinstance(covered_terms, str):
-        raise TypeError("covered_terms must be a sequence of strings, not a single string")
+        raise TypeError(
+            "covered_terms must be a sequence of strings, not a single string"
+        )
     if max_keyword_topics < 0:
         raise ValueError("max_keyword_topics must not be negative")
     topics: list[str] = []

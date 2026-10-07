@@ -54,7 +54,11 @@ def _sentences(text: str) -> list[str]:
     for match in _BOUNDARY.finditer(text):
         piece = text[start : match.start()]
         terminator = match.group().strip()
-        if terminator == "." and piece.split() and piece.split()[-1].casefold() in _ABBREVIATIONS:
+        if (
+            terminator == "."
+            and piece.split()
+            and piece.split()[-1].casefold() in _ABBREVIATIONS
+        ):
             continue
         pieces.append(piece)
         start = match.end()

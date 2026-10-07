@@ -43,7 +43,9 @@ def test_bad_period_is_rejected():
 
 def test_subject_dedupes_the_brand_prefix():
     assert subject_for("Samsung", "Galaxy S25 Ultra") == "Samsung Galaxy S25 Ultra"
-    assert subject_for("Samsung", "Samsung Galaxy S25 Ultra") == "Samsung Galaxy S25 Ultra"
+    assert (
+        subject_for("Samsung", "Samsung Galaxy S25 Ultra") == "Samsung Galaxy S25 Ultra"
+    )
     assert subject_for("Samsung", None) == "Samsung"
     assert subject_for("  Samsung ", "  ") == "Samsung"
 
@@ -64,7 +66,9 @@ def test_lean_plan_is_eleven_calls_with_the_documented_mix():
     target = [c for c in p.calls if c.role is BrandRole.target]
     rivals = [c for c in p.calls if c.role is BrandRole.competitor]
     assert len(target) == 7 and len(rivals) == 4
-    assert {c.window for c in rivals} == {WindowKind.current}  # competitors: current only
+    assert {c.window for c in rivals} == {
+        WindowKind.current
+    }  # competitors: current only
 
 
 def test_counts_with_fewer_competitors():
