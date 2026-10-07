@@ -241,9 +241,9 @@ Index: `(content_hash, analyzer_version)`. Before running inference, look up thi
 Phase 4.2 implementation notes (migration `0005`, model `ContentAnalysisRow`, `ContentAnalysisRepository`):
 - `content_id` is the PK and a foreign key to `content_items` with ON DELETE CASCADE, so deleting an analysis removes its NLP rows through its content items.
 - `sentiment_score`, `negative_prob` are `real` (float4) as documented; stored values carry float4 precision.
-- `matched_terms`, `topics`, `keywords` default to `'{}'`. `topics` and `keywords` stay empty until those modules exist.
+- `matched_terms`, `topics`, `keywords` default to `'{}'`. `topics` and `keywords` are filled by `services/nlp/keywords.py` and `topics.py` (Phase 4.3: per-text frequency keywords, topics = aspects plus uncovered keywords); they are empty for items that are not about the brand.
 - Checks: score in [-1, 1], probability in [0, 1], sha256-hex `content_hash`, non-blank `model` and `analyzer_version`. The `(content_hash, analyzer_version)` index is not unique (the same text can be analyzed in several analyses).
-- `analyzer_version` = `model|lexicon|clause rules|relevance rules|category[|config tag]` (`services/nlp/analyzer_version.py`). The category and the sentiment config tag (neutral margin, max length) are part of it because they change the results.
+- `analyzer_version` = `model|lexicon|clause rules|relevance rules|keyword rules|topic rules|category[|config tag]` (`services/nlp/analyzer_version.py`). The category and the sentiment config tag (neutral margin, max length) are part of it because they change the results.
 - Reuse copies only model-derived results (sentiment, scores, topics, keywords, model, aspects, original `analyzed_at`). Relevance is brand-specific, so a reused row takes the caller's `matched_terms` and is `is_about_brand = true`. Only sources with `is_about_brand = true` are reusable: items that are not about the brand never went through inference and get a neutral row.
 - Rows are never overwritten; an item that already has a row is skipped.
 

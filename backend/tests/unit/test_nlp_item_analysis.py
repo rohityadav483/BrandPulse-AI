@@ -15,8 +15,10 @@ from app.schemas.nlp import (
 from app.services.nlp.analyzer_version import analyzer_version_for, build_analyzer_version
 from app.services.nlp.clauses import CLAUSE_RULES_VERSION
 from app.services.nlp.item_analysis import ItemText, analyze_items, full_text
+from app.services.nlp.keywords import KEYWORD_RULES_VERSION
 from app.services.nlp.relevance import RELEVANCE_RULES_VERSION, BrandProfile
 from app.services.nlp.sentiment import SentimentResult, StubSentimentAnalyzer
+from app.services.nlp.topics import TOPIC_RULES_VERSION
 
 SAMSUNG = BrandProfile("Samsung", products=("Galaxy S25 Ultra",))
 HASH = "a" * 64
@@ -132,11 +134,34 @@ def test_category_selects_the_lexicon():
     assert generic.analyzer_version != electronics.analyzer_version
 
 
-def test_keywords_and_topics_stay_empty_until_those_modules_exist():
+def test_keywords_and_topics_are_filled_for_relevant_items():
     (analysis,) = analyze_items(
-        [ItemText("Samsung camera great", None)], SAMSUNG, StubSentimentAnalyzer()
+        [ItemText("Samsung camera great", "Battery drain after the update, battery drain")],
+        SAMSUNG,
+        StubSentimentAnalyzer(),
+    )
+    # brand word excluded; most frequent first; topics = aspects (in text order) then keywords
+    assert analysis.keywords[:2] == ("battery", "drain")
+    assert "samsung" not in analysis.keywords
+    assert analysis.topics[:2] == ("camera", "battery")
+    assert "update" in analysis.topics
+    assert "drain" not in analysis.topics  # covered by the battery aspect
+
+
+def test_irrelevant_items_get_no_keywords_or_topics():
+    (analysis,) = analyze_items(
+        [ItemText("Weather today", "Sunny with light wind")], SAMSUNG, StubSentimentAnalyzer()
     )
     assert analysis.keywords == () and analysis.topics == ()
+
+
+def test_keywords_do_not_depend_on_the_rest_of_the_batch():
+    item = ItemText("Samsung camera great", "battery terrible after the update")
+    alone = analyze_items([item], SAMSUNG, StubSentimentAnalyzer())[0]
+    batched = analyze_items(
+        [ItemText("Samsung display awful", "bright"), item], SAMSUNG, StubSentimentAnalyzer()
+    )[1]
+    assert (alone.keywords, alone.topics) == (batched.keywords, batched.topics)
 
 
 @pytest.mark.parametrize(
@@ -173,6 +198,8 @@ def test_version_is_model_plus_lexicon_plus_rules_plus_category():
             LEXICON_VERSION,
             CLAUSE_RULES_VERSION,
             RELEVANCE_RULES_VERSION,
+            KEYWORD_RULES_VERSION,
+            TOPIC_RULES_VERSION,
             "consumer_electronics",
         ]
     )
@@ -201,6 +228,12 @@ def test_version_changes_when_a_rule_version_changes(monkeypatch):
     assert module.build_analyzer_version("org/m") != before
     monkeypatch.setattr(module, "CLAUSE_RULES_VERSION", CLAUSE_RULES_VERSION)
     monkeypatch.setattr(module, "RELEVANCE_RULES_VERSION", "relevance-2")
+    assert module.build_analyzer_version("org/m") != before
+    monkeypatch.setattr(module, "RELEVANCE_RULES_VERSION", RELEVANCE_RULES_VERSION)
+    monkeypatch.setattr(module, "KEYWORD_RULES_VERSION", "keywords-2")
+    assert module.build_analyzer_version("org/m") != before
+    monkeypatch.setattr(module, "KEYWORD_RULES_VERSION", KEYWORD_RULES_VERSION)
+    monkeypatch.setattr(module, "TOPIC_RULES_VERSION", "topics-2")
     assert module.build_analyzer_version("org/m") != before
 
 

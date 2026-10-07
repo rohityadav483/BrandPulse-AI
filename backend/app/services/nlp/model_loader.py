@@ -80,9 +80,11 @@ def load_sequence_classifier(config: ClassifierConfig) -> SequenceClassifier:
             AutoModelForSequenceClassification,
             AutoTokenizer,
         )
-    except ImportError as exc:
+    except (ImportError, OSError) as exc:
+        # OSError: a half-installed torch (missing native libraries) fails on import with it.
         raise ModelUnavailableError(
-            "torch and transformers are required for the local sentiment model; "
+            "torch and transformers are required for the local sentiment model and could not "
+            f"be imported ({type(exc).__name__}: {exc}); "
             'install them with `pip install -e ".[nlp]"`'
         ) from exc
     try:

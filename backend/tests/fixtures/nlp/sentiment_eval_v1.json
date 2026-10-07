@@ -1,0 +1,658 @@
+{
+  "name": "brandpulse-sentiment-eval",
+  "version": 1,
+  "category": "consumer_electronics",
+  "labels": [
+    "negative",
+    "neutral",
+    "positive"
+  ],
+  "guidelines": [
+    "label = overall sentiment toward the brand/product expressed by title + snippet together.",
+    "Facts, announcements, specs, how-tos and questions without an opinion are neutral.",
+    "Genuinely mixed items are labeled by the dominant tone; when no tone dominates they are neutral.",
+    "aspects = every lexicon aspect the annotator saw in the text, with the sentiment of the clause that mentions it. Aspects not listed were not annotated, so detection precision is not reported.",
+    "Provenance: 'fixture:*' items come from tests/fixtures/serpapi (synthetic snippets from Phase 2); 'handwritten' items were written for this set. No live SerpApi data was used. Labels were assigned by one annotator (the implementing agent), not by independent human raters."
+  ],
+  "items": [
+    {
+      "id": "s01",
+      "brand": "Samsung",
+      "title": "Galaxy S25 Ultra review: best Android phone I have used",
+      "snippet": "The display is gorgeous and the camera is superb in low light. Easily worth the price.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "display": "positive",
+        "camera": "positive",
+        "price": "positive"
+      }
+    },
+    {
+      "id": "s02",
+      "brand": "Samsung",
+      "title": "Loving my S25 Ultra",
+      "snippet": "Battery easily lasts a full day and charging is quick. Really happy with this phone.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "battery": "positive",
+        "charging": "positive"
+      }
+    },
+    {
+      "id": "s03",
+      "brand": "Samsung",
+      "title": "S25 Ultra camera is amazing",
+      "snippet": "The zoom photos are sharp and the night mode is brilliant.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "camera": "positive"
+      }
+    },
+    {
+      "id": "s04",
+      "brand": "Samsung",
+      "title": "Samsung customer support fixed my screen quickly",
+      "snippet": "Great experience, the support team replaced the display in two days at no cost.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "customer_support": "positive",
+        "display": "positive"
+      }
+    },
+    {
+      "id": "s05",
+      "brand": "Apple",
+      "title": "iPhone 16 Pro: smooth and reliable",
+      "snippet": "Performance is fantastic, apps open instantly and the phone never stutters.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "performance": "positive"
+      }
+    },
+    {
+      "id": "s06",
+      "brand": "Apple",
+      "title": "The iPhone camera keeps getting better",
+      "snippet": "Video recording is impressive and the photos look stunning even indoors.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "camera": "positive"
+      }
+    },
+    {
+      "id": "s07",
+      "brand": "Apple",
+      "title": "Apple Watch battery life impresses",
+      "snippet": "Two full days on a single charge, I love it.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "battery": "positive"
+      }
+    },
+    {
+      "id": "s08",
+      "brand": "OnePlus",
+      "title": "OnePlus 13 is a fantastic value",
+      "snippet": "Fast charging is superb and the screen is smooth at 120 Hz. Highly recommend.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "charging": "positive",
+        "display": "positive"
+      }
+    },
+    {
+      "id": "s09",
+      "brand": "OnePlus",
+      "title": "OnePlus 13 review",
+      "snippet": "Excellent performance and a great design for the price.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "performance": "positive",
+        "design": "positive",
+        "price": "positive"
+      }
+    },
+    {
+      "id": "s10",
+      "brand": "Samsung",
+      "title": "Why I switched to the Galaxy S25 Ultra",
+      "snippet": "The build feels premium, the titanium frame is beautiful and the phone is solid.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "design": "positive"
+      }
+    },
+    {
+      "id": "s11",
+      "brand": "Samsung",
+      "title": "Samsung One UI 7 is a great update",
+      "snippet": "The software feels polished and the new features work well.",
+      "label": "positive",
+      "source": "handwritten"
+    },
+    {
+      "id": "s12",
+      "brand": "Apple",
+      "title": "Apple AirPods Pro 2 sound great",
+      "snippet": "The audio is rich and the noise cancelling is excellent.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "audio": "positive"
+      }
+    },
+    {
+      "id": "s13",
+      "brand": "OnePlus",
+      "title": "OnePlus Buds Pro 3 are a bargain",
+      "snippet": "Impressive sound for the money, comfortable and the battery is solid.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "audio": "positive",
+        "battery": "positive"
+      }
+    },
+    {
+      "id": "s14",
+      "brand": "Samsung",
+      "title": "Galaxy S25 Ultra: the gaming phone I wanted",
+      "snippet": "Smooth frame rates, no throttling in long sessions. Very impressed.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "performance": "positive"
+      }
+    },
+    {
+      "id": "s15",
+      "brand": "Apple",
+      "title": "Switching to iPhone was the best decision",
+      "snippet": "Everything just works and I am so happy with it.",
+      "label": "positive",
+      "source": "handwritten"
+    },
+    {
+      "id": "s16",
+      "brand": "Samsung",
+      "title": "S25 Ultra deal: a great price right now",
+      "snippet": "Samsung has cut the price and it is a really good offer.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "price": "positive"
+      }
+    },
+    {
+      "id": "s17",
+      "brand": "OnePlus",
+      "title": "My OnePlus 13 still feels brand new",
+      "snippet": "Reliable, fast and the battery keeps going. Love it.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "battery": "positive"
+      }
+    },
+    {
+      "id": "s18",
+      "brand": "Samsung",
+      "title": "Samsung Galaxy S25 Ultra, great screen",
+      "snippet": "The display is bright and sharp, perfect outdoors.",
+      "label": "positive",
+      "source": "handwritten",
+      "aspects": {
+        "display": "positive"
+      }
+    },
+    {
+      "id": "s19",
+      "brand": "Samsung",
+      "title": "Battery drain after July update (S25 Ultra)",
+      "snippet": "Anyone else seeing 15-20% overnight drain since the update?",
+      "label": "negative",
+      "source": "fixture:google_forums_samsung_s25_ultra.json",
+      "aspects": {
+        "battery": "negative"
+      }
+    },
+    {
+      "id": "s20",
+      "brand": "Samsung",
+      "title": "Why is my S25 Ultra battery draining so fast?",
+      "snippet": "Since the July update the phone loses 20% overnight and runs warm.",
+      "label": "negative",
+      "source": "fixture:google_web_samsung_s25_ultra.json",
+      "aspects": {
+        "battery": "negative"
+      }
+    },
+    {
+      "id": "s21",
+      "brand": "Samsung",
+      "title": "Galaxy S25 Ultra owners report battery drain after July update",
+      "snippet": "Complaints about faster battery drain and warmth followed the latest security update.",
+      "label": "negative",
+      "source": "fixture:google_news_samsung_s25_ultra.json",
+      "aspects": {
+        "battery": "negative"
+      }
+    },
+    {
+      "id": "s22",
+      "brand": "Samsung",
+      "title": "S25 Ultra after the update: is the battery really worse?",
+      "snippet": "We test battery life before and after the July update.",
+      "label": "neutral",
+      "source": "fixture:youtube_samsung_s25_ultra.json",
+      "aspects": {
+        "battery": "neutral"
+      }
+    },
+    {
+      "id": "s23",
+      "brand": "Samsung",
+      "title": "Terrible experience with Samsung customer support",
+      "snippet": "They kept me waiting for weeks and never fixed my phone. Awful service.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "customer_support": "negative"
+      }
+    },
+    {
+      "id": "s24",
+      "brand": "Samsung",
+      "title": "S25 Ultra overheating while gaming",
+      "snippet": "The phone gets very hot and the performance drops. Really disappointing for the price.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "performance": "negative",
+        "price": "negative"
+      }
+    },
+    {
+      "id": "s25",
+      "brand": "Samsung",
+      "title": "My S25 Ultra screen has a green line",
+      "snippet": "Display broke after a month. Very frustrating, I regret buying it.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "display": "negative"
+      }
+    },
+    {
+      "id": "s26",
+      "brand": "Apple",
+      "title": "iPhone 16 battery life is poor",
+      "snippet": "It barely lasts half a day and the battery health drops fast. Bad.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "battery": "negative"
+      }
+    },
+    {
+      "id": "s27",
+      "brand": "Apple",
+      "title": "Apple iOS update ruined my phone",
+      "snippet": "Everything is laggy and apps keep crashing since the update. Horrible.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "performance": "negative"
+      }
+    },
+    {
+      "id": "s28",
+      "brand": "Apple",
+      "title": "iPhone prices are ridiculous",
+      "snippet": "Overpriced for what you get, the new model is not worth the money.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "price": "negative"
+      }
+    },
+    {
+      "id": "s29",
+      "brand": "OnePlus",
+      "title": "OnePlus 13 software is buggy",
+      "snippet": "Constant bugs and random reboots. I am disappointed.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "software": "negative"
+      }
+    },
+    {
+      "id": "s30",
+      "brand": "OnePlus",
+      "title": "OnePlus charger stopped working",
+      "snippet": "The charger died after two months and support was useless.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "charging": "negative",
+        "customer_support": "negative"
+      }
+    },
+    {
+      "id": "s31",
+      "brand": "OnePlus",
+      "title": "OnePlus camera is mediocre",
+      "snippet": "Photos look washed out in low light and the zoom is poor.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "camera": "negative"
+      }
+    },
+    {
+      "id": "s32",
+      "brand": "Samsung",
+      "title": "Galaxy S25 Ultra feels slippery and fragile",
+      "snippet": "The design is awkward to hold and I worry about drops. Not a fan.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "design": "negative"
+      }
+    },
+    {
+      "id": "s33",
+      "brand": "Apple",
+      "title": "AirPods Pro stopped connecting",
+      "snippet": "Bluetooth keeps dropping, the audio cuts out all the time. Annoying.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "connectivity": "negative",
+        "audio": "negative"
+      }
+    },
+    {
+      "id": "s34",
+      "brand": "Samsung",
+      "title": "Samsung ads in the settings are awful",
+      "snippet": "Terrible software decision, I hate it and nobody asked for this.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "software": "negative"
+      }
+    },
+    {
+      "id": "s35",
+      "brand": "OnePlus",
+      "title": "OnePlus 13 review: not worth it",
+      "snippet": "Overheating, poor battery and a disappointing camera. Skip this one.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "battery": "negative",
+        "camera": "negative",
+        "performance": "negative"
+      }
+    },
+    {
+      "id": "s36",
+      "brand": "Apple",
+      "title": "Apple repair costs are insane",
+      "snippet": "A cracked screen replacement is expensive and the whole process was a nightmare.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "display": "negative",
+        "price": "negative"
+      }
+    },
+    {
+      "id": "s37",
+      "brand": "Samsung",
+      "title": "Samsung announces Galaxy S25 Ultra release date",
+      "snippet": "The phone will go on sale next month in several markets.",
+      "label": "neutral",
+      "source": "handwritten"
+    },
+    {
+      "id": "s38",
+      "brand": "Samsung",
+      "title": "Galaxy S25 Ultra specs",
+      "snippet": "6.9-inch display, 5000 mAh battery and a 200 MP main camera.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "display": "neutral",
+        "battery": "neutral",
+        "camera": "neutral"
+      }
+    },
+    {
+      "id": "s39",
+      "brand": "Apple",
+      "title": "Apple releases iOS 19.1",
+      "snippet": "The update includes security fixes and minor changes.",
+      "label": "neutral",
+      "source": "handwritten"
+    },
+    {
+      "id": "s40",
+      "brand": "Apple",
+      "title": "iPhone 16 vs Galaxy S25 Ultra",
+      "snippet": "A comparison of the two phones across display, camera and battery.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "display": "neutral",
+        "camera": "neutral",
+        "battery": "neutral"
+      }
+    },
+    {
+      "id": "s41",
+      "brand": "OnePlus",
+      "title": "OnePlus 13 launches in India",
+      "snippet": "The company announced the price and availability for the new phone.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "price": "neutral"
+      }
+    },
+    {
+      "id": "s42",
+      "brand": "Samsung",
+      "title": "Samsung Q3 earnings preview",
+      "snippet": "Analysts expect the mobile division to report results next week.",
+      "label": "neutral",
+      "source": "handwritten"
+    },
+    {
+      "id": "s43",
+      "brand": "Apple",
+      "title": "Apple event scheduled for October",
+      "snippet": "The company sent out invitations for its next product announcement.",
+      "label": "neutral",
+      "source": "handwritten"
+    },
+    {
+      "id": "s44",
+      "brand": "Samsung",
+      "title": "How to turn on wireless charging on Galaxy S25 Ultra",
+      "snippet": "Open settings, tap battery and then enable the option.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "battery": "neutral",
+        "charging": "neutral"
+      }
+    },
+    {
+      "id": "s45",
+      "brand": "OnePlus",
+      "title": "OnePlus 13 box contents",
+      "snippet": "The package includes the phone, a charger and a USB cable.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "charging": "neutral"
+      }
+    },
+    {
+      "id": "s46",
+      "brand": "Apple",
+      "title": "Apple store opening hours",
+      "snippet": "The store is open from 10 am to 8 pm on weekdays.",
+      "label": "neutral",
+      "source": "handwritten"
+    },
+    {
+      "id": "s47",
+      "brand": "Samsung",
+      "title": "Samsung firmware update rolling out",
+      "snippet": "The software update is available now for Galaxy S25 Ultra owners.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "software": "neutral"
+      }
+    },
+    {
+      "id": "s48",
+      "brand": "OnePlus",
+      "title": "OnePlus teases new colors",
+      "snippet": "Two new finishes will be shown at the upcoming event.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "design": "neutral"
+      }
+    },
+    {
+      "id": "s49",
+      "brand": "Apple",
+      "title": "Apple supplier lists leaked",
+      "snippet": "Reports name several companies that make parts for the next phone.",
+      "label": "neutral",
+      "source": "handwritten"
+    },
+    {
+      "id": "s50",
+      "brand": "Samsung",
+      "title": "Galaxy S25 Ultra camera settings explained",
+      "snippet": "A guide to the zoom and night mode menus in the camera app.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "camera": "neutral"
+      }
+    },
+    {
+      "id": "s51",
+      "brand": "OnePlus",
+      "title": "OnePlus customer support contact",
+      "snippet": "You can reach the support team by chat or phone.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "customer_support": "neutral"
+      }
+    },
+    {
+      "id": "s52",
+      "brand": "Apple",
+      "title": "iPhone 16 Pro battery health menu",
+      "snippet": "Settings shows the battery health percentage and charge cycles.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "battery": "neutral",
+        "charging": "neutral"
+      }
+    },
+    {
+      "id": "s53",
+      "brand": "Samsung",
+      "title": "Samsung Galaxy S25 Ultra is available in four colors",
+      "snippet": "Titanium finishes include black, gray, silver and blue.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "design": "neutral"
+      }
+    },
+    {
+      "id": "s54",
+      "brand": "OnePlus",
+      "title": "OnePlus 13 refresh rate options",
+      "snippet": "The display supports 60 Hz and 120 Hz modes.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "display": "neutral"
+      }
+    },
+    {
+      "id": "s55",
+      "brand": "Samsung",
+      "title": "S25 Ultra: excellent camera but terrible battery",
+      "snippet": "The camera is amazing but battery life is terrible.",
+      "label": "negative",
+      "source": "handwritten",
+      "aspects": {
+        "camera": "positive",
+        "battery": "negative"
+      }
+    },
+    {
+      "id": "s56",
+      "brand": "Samsung",
+      "title": "Galaxy S25 Ultra review: the good and the bad",
+      "snippet": "Excellent camera, but several owners report battery drain after the update.",
+      "label": "neutral",
+      "source": "fixture:google_web_samsung_s25_ultra.json",
+      "aspects": {
+        "camera": "positive",
+        "battery": "negative"
+      }
+    },
+    {
+      "id": "s57",
+      "brand": "Apple",
+      "title": "iPhone 16 Pro review",
+      "snippet": "Great performance, although the price is too high and the charging is slow.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "performance": "positive",
+        "price": "negative",
+        "charging": "negative"
+      }
+    },
+    {
+      "id": "s58",
+      "brand": "OnePlus",
+      "title": "OnePlus 13 verdict",
+      "snippet": "The screen is gorgeous but the software is buggy.",
+      "label": "neutral",
+      "source": "handwritten",
+      "aspects": {
+        "display": "positive",
+        "software": "negative"
+      }
+    }
+  ]
+}

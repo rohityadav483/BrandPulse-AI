@@ -6,7 +6,10 @@ one sentiment per aspect clause. All model work for a call goes through one
 `SentimentAnalyzer.analyze` call, so a real model batches across items. Pure: no DB, no I/O
 besides the analyzer.
 
-`keywords` and `topics` are empty until those modules exist.
+Keywords (`keywords.extract_keywords`, per-text frequency, brand terms excluded) and topics
+(`topics.derive_topics`: aspect names plus top keywords) are deterministic rules computed from
+the item's own text, so they do not depend on the batch and stay reusable by `analyzer_version`.
+Irrelevant items get none.
 """
 
 from collections.abc import Sequence
@@ -17,8 +20,10 @@ from app.schemas.domain import Category, Sentiment
 from app.schemas.nlp import AspectSentiment, ItemAnalysis
 from app.services.nlp.analyzer_version import analyzer_version_for
 from app.services.nlp.aspects import AspectClause, detect_aspects_in_text
+from app.services.nlp.keywords import extract_keywords
 from app.services.nlp.relevance import BrandProfile, RelevanceResult, detect_relevance
 from app.services.nlp.sentiment import SentimentAnalyzer, SentimentResult
+from app.services.nlp.topics import derive_topics
 
 _TERMINATORS = (".", "!", "?", ";", "…")
 
@@ -67,10 +72,12 @@ def analyze_items(
     texts: list[str] = []  # everything the model must score, in one batch
     overall_slot: dict[int, int] = {}
     aspect_slots: dict[int, list[tuple[AspectClause, int]]] = {}
+    item_text: dict[int, str] = {}
     for position, (item, found_relevance) in enumerate(zip(items, relevance, strict=True)):
         if not found_relevance.is_about_brand:
             continue
         text = full_text(item)
+        item_text[position] = text
         overall_slot[position] = len(texts)
         texts.append(text)
         slots: list[tuple[AspectClause, int]] = []
@@ -98,6 +105,12 @@ def analyze_items(
             )
             continue
         overall = results[overall_slot[position]]
+        aspect_rows = tuple(
+            _aspect_row(found, results[slot]) for found, slot in aspect_slots[position]
+        )
+        keywords = extract_keywords(item_text[position], exclude_terms=profile.terms)
+        covered = [term for found, _ in aspect_slots[position] for term in found.matched_terms]
+        topics = derive_topics([row.aspect for row in aspect_rows], keywords, covered_terms=covered)
         analyses.append(
             ItemAnalysis(
                 sentiment=overall.label,
@@ -105,11 +118,11 @@ def analyze_items(
                 negative_prob=overall.negative_prob,
                 is_about_brand=True,
                 matched_terms=found_relevance.matched_terms,
+                topics=topics,
+                keywords=keywords,
                 model=analyzer.model_name,
                 analyzer_version=version,
-                aspects=tuple(
-                    _aspect_row(found, results[slot]) for found, slot in aspect_slots[position]
-                ),
+                aspects=aspect_rows,
             )
         )
     return analyses

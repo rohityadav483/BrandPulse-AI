@@ -134,7 +134,9 @@ def test_save_and_read_back_round_trip(repo, stored):
     assert got.model == expected.model and got.analyzer_version == expected.analyzer_version
     assert got.sentiment_score == pytest.approx(expected.sentiment_score, abs=1e-6)
     assert got.negative_prob == pytest.approx(expected.negative_prob, abs=1e-6)
-    assert (got.topics, got.keywords) == ((), ())
+    # keywords/topics (Phase 4.3) must survive the text[] columns unchanged
+    assert expected.keywords and expected.topics
+    assert (got.topics, got.keywords) == (expected.topics, expected.keywords)
     by_aspect = {a.aspect: a for a in got.aspects}
     assert set(by_aspect) == {"camera", "battery"}
     assert by_aspect["camera"].clause == "The camera is amazing"

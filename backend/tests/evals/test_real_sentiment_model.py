@@ -5,7 +5,9 @@ access to the Hugging Face hub):
 
     pytest -m model tests/evals/test_real_sentiment_model.py
 
-Not run in CI and not run in the Phase 4.2 pass (no torch, no model files were available).
+Not run in CI. Not run in the Phase 4.2 or 4.3 passes either (no torch, no model files; the
+Hugging Face hub was unreachable from the sandbox). Before trusting the margin, also run
+`python scripts/run_eval.py --analyzer hf --sweep` on the same machine.
 """
 
 import pytest

@@ -43,7 +43,8 @@ class AspectSentiment(_Frozen):
 class ItemAnalysis(_Frozen):
     """One `content_analysis` row without its identity, plus the item's aspect rows.
 
-    `keywords` and `topics` stay empty until those modules exist (Phase 4 later step).
+    `keywords` and `topics` come from the deterministic rules in `services/nlp/keywords.py` and
+    `topics.py`; both are empty for items that are not about the brand.
     """
 
     sentiment: Sentiment

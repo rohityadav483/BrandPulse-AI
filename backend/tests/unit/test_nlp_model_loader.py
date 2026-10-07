@@ -118,6 +118,18 @@ def test_missing_torch_gives_a_clear_error(monkeypatch):
         load_sequence_classifier(ClassifierConfig("org/m"))
 
 
+def test_broken_torch_install_gives_a_clear_error(monkeypatch, tmp_path):
+    # A half-installed torch (native library missing) raises OSError on import, not ImportError.
+    package = tmp_path / "torch"
+    package.mkdir()
+    (package / "__init__.py").write_text("raise OSError('libtorch_global_deps.so: not found')\n")
+    monkeypatch.delitem(sys.modules, "torch", raising=False)
+    monkeypatch.syspath_prepend(str(tmp_path))
+    with pytest.raises(ModelUnavailableError, match=r"OSError.*\.\[nlp\]"):
+        load_sequence_classifier(ClassifierConfig("org/m"))
+    assert "torch" not in sys.modules
+
+
 # ---- torch wiring with fakes ----
 
 

@@ -1,6 +1,6 @@
 # BrandPulse AI — Development Progress
 
-> **Post-upload verification/fix (2026-10-07):** The uploaded Phase 4.2 zip was re-tested in a clean environment. The default backend suite initially had **2 failures** in the NLP import-guard tests because Pydantic imports `numpy` transitively; this was not a production NLP/model import. The guards were corrected to check the actual forbidden model/database libraries (`torch`, `transformers`, and `sqlalchemy` where applicable). After the fix: **790 passed, 227 skipped, 3 deselected** under the default non-model/non-live pytest configuration; `compileall` passed. Ruff/frontend checks were not rerun in this environment because Ruff and frontend `node_modules` are unavailable here. No production code was changed.
+> **Phase 4.3 evidence (2026-10-07), read this first.** Environment: working `pip` and `apt`; **no access to Hugging Face** (`huggingface.co`, `hf-mirror.com` return HTTP 403 `host_not_allowed`; `cdn-lfs.huggingface.co` does not resolve) and no PyTorch index. Real tools ran: **pytest 9.1.1, Ruff 0.16.10, pydantic 2.13.5, SQLAlchemy 2.0.54, Alembic 1.20.0, PostgreSQL 16 (apt, local)**. Results after Phase 4.3: **1074 passed, 3 deselected (`model` marker) with `TEST_DATABASE_URL`; 847 passed, 227 skipped, 3 deselected without it** (previous baseline 790 passed + 227 skipped without PostgreSQL: +57 tests, 23 `test_nlp_keywords_topics`, 31 `test_nlp_evaluation`, +2 in `test_nlp_item_analysis`, +1 in `test_nlp_model_loader`). `ruff check .` and `ruff format --check .` clean (170 files); `compileall`, `export_openapi.py --check`, `validate_golden.py`, `check_type_contract.py` (75 schemas) ok; `alembic upgrade head`, `alembic check` (\"No new upgrade operations detected\"), `downgrade 0004`, re-upgrade ok (`alembic current` = `0005`); no new migration. Six deliberate mutations (keyword ranking, brand exclusion, topic dedupe, Macro-F1 formula, aspect recall, item_analysis brand exclusion) each made tests fail, plus one for the loader fix. **NOT verified, and no metric is claimed for it: the real Hugging Face model `cardiffnlp/twitter-roberta-base-sentiment-latest`.** A `pip install torch transformers` attempt failed with `No space left on device` (the PyPI Linux build pulls the CUDA stack); it was rolled back and the leftovers were removed. Even with torch the model weights cannot be downloaded from this sandbox. So accuracy, Macro-F1, per-class metrics, confusion matrix, throughput, cold start and memory **for the real model are UNKNOWN**, and `neutral_margin` stays at the untuned `0.15` (it can only be tuned from real-model probabilities). Not verified either: CI, frontend (untouched, not re-run), Supabase, any live SerpApi/Groq call.
 
 > **Phase 4.2 evidence (2026-10-07), read this first.** Unlike the Phase 3.2/4.1 sandboxes, this pass had working `pip` and `apt` (network reachable), so the real tools ran: **pytest 9.1.1, Ruff 0.16.10, pydantic 2.13.5, SQLAlchemy 2.0.54, Alembic 1.20.0, PostgreSQL 16 (apt, local)**. Before any change the whole suite was run as received: **860 passed with `TEST_DATABASE_URL`** (685 passed + 175 skipped without it); `ruff format --check` clean; `ruff check` reported **one** error, `UP033` in `services/nlp/aspects.py` (Phase 4.1 code, `lru_cache(maxsize=None)`), fixed with the equivalent `functools.cache` (no behavior change). After Phase 4.2: **1017 passed with PostgreSQL; 790 passed, 227 skipped, 3 deselected (`model` marker) without**; `ruff check .` and `ruff format --check .` clean (167 files); `alembic upgrade head`, `alembic check` ("No new upgrade operations detected"), `downgrade 0004`, re-upgrade ok on a blank database; `export_openapi.py --check`, `validate_golden.py`, `check_type_contract.py` (75 schemas), `compileall` ok; six deliberate mutations each made the new tests fail. **This supersedes the Phase 4.1 "never run" caveats below for backend code: Phase 0-4.1 are now confirmed by real pytest/Ruff/PG16.** **NOT verified:** the real Hugging Face model (torch and transformers were not installed, no model files, the Hugging Face hub is not reachable from the sandbox), so `load_sequence_classifier` is only tested against fake `torch`/`transformers` modules and the `model`-marked test `tests/evals/test_real_sentiment_model.py` (3 tests) was only collected and skipped, never run against a real model; CI; frontend (untouched, not re-run); Supabase; any live SerpApi/Groq call. `ci.yml` and `contracts/demo/samsung_s25_ultra.json` are still 0-byte files in the zip.
 
@@ -13,14 +13,26 @@
 
 ---
 
+
+[PREVIOUS VERIFICATION — 2026-10-07, superseded by the Phase 4.3 evidence at the top]
+- Uploaded Phase 4.2 code was retested after the previous verification.
+- Initial retest exposed 2 failures in the NLP import-guard tests.
+- Root cause: the tests incorrectly treated `numpy` as a forbidden model-library import; Pydantic imports NumPy transitively.
+- Fix: corrected the import-guard tests only. No production NLP behavior was changed.
+- Final backend result after the fix: **790 passed, 227 skipped, 3 deselected**.
+- `compileall`: passed.
+- Ruff was not rerun in this execution environment.
+- Frontend was not rerun in this execution environment.
+- Real Hugging Face model remains unverified.
+
 ## 1. Current Status
 
 ```text
-MVP STATUS: PHASES 0-3 IMPLEMENTED + PHASE 4.1 + 4.2 (NLP foundation, real-model analyzer code, NLP persistence) CODE-COMPLETE AND BACKEND-TESTED; REAL MODEL NEVER RUN; NOTHING WIRED INTO ANY REAL RUN YET; GOLDEN DEMO READY; EXTERNAL ACCOUNTS PENDING
-CURRENT PHASE: 4 (local NLP), steps 4.1 and 4.2 done; remaining in Phase 4: keywords/topics, labeled eval set + `scripts/run_eval.py`, real-model run (model choice, margin tuning, throughput/memory); Phase 0 external account setup still pending
+MVP STATUS: PHASES 0–4.3 IMPLEMENTED; BACKEND VERIFIED (1074 passed with PostgreSQL); PHASE 4 REAL-MODEL VALIDATION STILL PENDING (real model never run)
+CURRENT PHASE: 4 (local NLP), steps 4.1, 4.2 and 4.3 done (4.3 = keywords/topics, labeled eval set, `scripts/run_eval.py`); Phase 4 is NOT closed: real-model run, `neutral_margin` tuning, model choice and throughput/memory still need a machine with torch and Hugging Face access
 CURRENT MILESTONE: M1 (Clickable demo): full golden journey implemented; manual visual check on desktop/mobile pending
 OVERALL COMPLETION: Phases 0-3 implemented (Phase 0 accounts, Phase 1 visual check and Phase 2 live probe pending); Phases 4-10 not started
-LAST UPDATED: 2026-10-07 (Phase 4.2)
+LAST UPDATED: 2026-10-07 (Phase 4.3)
 ```
 ## 2. Executive Summary
 
@@ -30,6 +42,7 @@ LAST UPDATED: 2026-10-07 (Phase 4.2)
 - **Phase 3.2 (2026-10-07):** `services/processing` (cleaner, normalizer, dates, dedupe, processor), `content_items` table (migration `0004`), `ContentItemRepository`, pipeline stage `process_raw_items` (reads `raw_items`, writes `content_items`), 270 new tests. See section 4.
 - **Phase 4.1 (2026-10-07):** `services/nlp` foundation: rule-based relevance, clause splitting, aspect lexicon (`config/taxonomy.py`), `SentimentAnalyzer` protocol + deterministic stub, 185 new unit tests. No model, DB, API or pipeline change. See section 4 and the verification caveat at the top of this file.
 - **Phase 4.2 (2026-10-07):** `HFSentimentAnalyzer` + lazy `model_loader` (torch/transformers imported only on first inference), `analyzer_version`, `item_analysis`, tables `content_analysis` / `item_aspects` (migration `0005`), `ContentAnalysisRepository` / `ItemAspectRepository`, reuse by `(content_hash, analyzer_version)`. 157 net new tests (1017 total with PostgreSQL). Real model **not run**. No pipeline, API, OpenAPI, frontend or Phase 4.1 behavior change. See section 4.
+- **Phase 4.3 (2026-10-07):** `services/nlp/keywords.py` + `topics.py` (deterministic, per-text), wired into `analyze_items` (so `content_analysis.keywords/topics` are now filled; `analyzer_version` gained `keywords-1|topics-1`), `services/nlp/evaluation.py` (pure metrics/runner), labeled set `tests/fixtures/nlp/sentiment_eval_v1.json` (58 items), `scripts/run_eval.py`. One bug found and fixed: a half-installed torch raises `OSError` on import, which `load_sequence_classifier` did not turn into `ModelUnavailableError`. Real model **not run** (Hugging Face unreachable). No pipeline, API, OpenAPI, frontend, migration, SerpApi or Groq change. See section 4 and section 13.
 - **Not externally completed:** Supabase, SerpApi, and Groq account creation/keys. No live calls were made.
 - **Frontend verification (Phase 1 pass):** npm access worked; `npm ci`, typecheck, lint, test (21 passed) and build all pass, and a `next start` smoke test returned 200 on all 8 golden routes.
 - **Can it be demonstrated?** Yes. Golden mode needs only the frontend (see section 7b); no external credits are required.
@@ -41,7 +54,7 @@ LAST UPDATED: 2026-10-07 (Phase 4.2)
 | 1 | Frontend on golden data | IMPLEMENTED (visual check pending) | Landing → analyze (estimate + confirm dialog) → simulated progress → dashboard (health, sentiment, aspect drawer, trend, signal card) → investigation → evidence → competitors; states + 21 frontend tests |
 | 2 | SerpApi layer and budget machinery | IMPLEMENTED (verified by real pytest/Ruff/PG16 on 2026-10-07; no live probe yet) | Migration `0002`, client, cache, budget/usage, estimator, planner, 5 parsers, synthetic fixtures, safe recorder script. See sections 11, 18, 22 |
 | 3 | Processing and persistence | IMPLEMENTED (3.1 + 3.2; not wired into `analysis_pipeline`, verified on local PG 16 only) | **3.1:** `RawItem` contract, `raw_items` (`0003`), `RawItemRepository`. **3.2:** `cleaner`, `normalizer`, `dates`, `dedupe`, `processor`, `content_items` (`0004`), `ContentItemRepository`, stage `pipeline/process_raw_items.py` |
-| 4 | Local NLP | IN PROGRESS (4.1 + 4.2 done, not wired, real model never run) | **4.1:** `relevance`, `clauses`, `aspects` + lexicons in `config/taxonomy.py`, `SentimentAnalyzer` + stub. **4.2:** `HFSentimentAnalyzer`, `model_loader`, `analyzer_version`, `item_analysis`, `content_analysis` + `item_aspects` (`0005`), both repositories, reuse by `(content_hash, analyzer_version)`. **Not started:** keywords/topics, eval set + `run_eval.py`, running the real model, model choice, pipeline wiring |
+| 4 | Local NLP | IN PROGRESS (4.1, 4.2, 4.3 done; not wired; real model never run) | **4.1:** `relevance`, `clauses`, `aspects` + lexicons in `config/taxonomy.py`, `SentimentAnalyzer` + stub. **4.2:** `HFSentimentAnalyzer`, `model_loader`, `analyzer_version`, `item_analysis`, `content_analysis` + `item_aspects` (`0005`), both repositories, reuse by `(content_hash, analyzer_version)`. **4.3:** `keywords`, `topics`, `evaluation`, labeled set (58 items), `scripts/run_eval.py`. **Not done:** running the real model, `neutral_margin` tuning, model choice, throughput/memory measurement, pipeline wiring |
 | 5 | Signals, scoring and brand health | NOT STARTED | Formula primitives only; pipeline not implemented |
 | 6 | Analysis pipeline and first real end-to-end | NOT STARTED | — |
 | 7 | Groq and investigation | NOT STARTED | Golden report only; live investigation not implemented |
@@ -89,6 +102,39 @@ Phase 3.2: normalization, dates, deduplication and `content_items` (builds on th
 - Dependencies: `pyproject.toml` gets an **optional extra** `nlp = [torch>=2.2, transformers>=4.40]`; core and dev dependencies unchanged. Nothing imports torch/transformers at import time (guarded by a subprocess test and an AST test).
 - Tests (157 net new, all passing): `unit/test_nlp_hf_sentiment.py` (45), `unit/test_nlp_model_loader.py` (15, fake torch/transformers and import guards), `unit/test_nlp_item_analysis.py` (45: item analysis, version, schemas), `integration/test_content_analysis_repository.py` (23, PostgreSQL: round trip, idempotency, atomic rollback, filters, cascade, reuse flow with a counting analyzer: zero inference on re-run and on identical texts in another analysis, new texts only, version/category/model change = no reuse, relevance per brand, non-relevant sources never reused, classification of targets), `0005` additions in `test_migrations.py` (123 -> 152 tests: columns, indexes, PKs, defaults, every check, FKs/cascade, downgrade). Updated: head `0005`, table sets, downgrade tests, offline-SQL assertion. `tests/evals/test_real_sentiment_model.py` (3 tests, marker `model`, skipped without torch).
 - NOT done on purpose: signals/scoring (Phase 5), pipeline wiring (Phase 6; no stage was added, nothing calls the new code outside tests), Groq, SerpApi, frontend, API/OpenAPI changes, `keywords.py`, `topics.py`, labeled eval set, `scripts/run_eval.py`, real-model run, model choice.
+
+### Phase 4.3 work completed (2026-10-07)
+- Scope: **Phase 4.3 only** (NLP evaluation). Phase 5, pipeline wiring, SerpApi, Groq, frontend and migrations were not touched.
+- `services/nlp/keywords.py`: `extract_keywords(text, exclude_terms, max_keywords=5)`. Normalise (`textnorm`), drop stopwords, words under 3 characters, digit-only words and the words of the brand/product terms; rank by frequency, then first position, then alphabetically. Single casefolded words, no stemming, no phrases. Depends on the one text only: a corpus-level TF-IDF was deliberately not implemented because it would make results depend on the batch and break reuse by `(content_hash, analyzer_version)`. `KEYWORD_RULES_VERSION = "keywords-1"`.
+- `services/nlp/topics.py`: `derive_topics(aspect_names, keywords, covered_terms, max_keyword_topics=3)` = aspect names (text order, no duplicates) + up to 3 keywords not already covered by an aspect name or a matched aspect term. `TOPIC_RULES_VERSION = "topics-1"`.
+- `item_analysis.analyze_items` fills `keywords`/`topics` for relevant items (irrelevant items get none). `analyzer_version` is now `model|lex-1|clauses-1|relevance-1|keywords-1|topics-1|category[|config tag]`. This changes `analyzer_version` strings, so a row stored by 4.2 code would not be reused (none exist outside tests). `docs/DATABASE.md` 5.6 implementation notes (not the planned schema) were corrected for this.
+- `services/nlp/evaluation.py`: `load_dataset` (validates labels, ids, aspect names), `run_analyzer` (one `analyze` call, same `title + snippet` text and clause path as production), `classification_report` (accuracy, Macro-F1 as the unweighted mean over the three labels, per-class precision/recall/F1/support, confusion matrix), `score` (also aspect detection recall and aspect sentiment accuracy on annotated-and-detected aspects), `relabel`/`sweep` (re-apply `neutral_margin` to stored probabilities with the same `to_result` as `HFSentimentAnalyzer`; a test proves equality with an analyzer built with that margin on 200 random probability rows and 5 margins).
+- `scripts/run_eval.py`: `--analyzer stub|hf`, `--model-id`, `--cache-dir`, `--local-files-only`, `--neutral-margin`, `--sweep`/`--margins`, `--show-errors`, `--json-out`, `--enforce` (plan thresholds accuracy >= 0.75, Macro-F1 >= 0.70). For `hf` it also reports cold start, texts/second and peak RSS (not on Windows). Exit 2 with `REAL MODEL NOT AVAILABLE` and no metrics when torch/transformers/model files are missing.
+- Dataset `tests/fixtures/nlp/sentiment_eval_v1.json`: 58 items, 18 positive / 18 negative / 22 neutral; 50 items carry aspect labels (75 aspect labels). 5 items are taken from the **synthetic** Phase 2 SerpApi fixtures (a test checks they match those files), 53 are hand-written. **Single annotator (the implementing agent); no second rater; no real scraped snippets** (live SerpApi is not allowed). Mixed items are labeled by dominant tone, else neutral. The set was written before any model result existed and was not changed after seeing results.
+- Bug fixed: a half-installed torch (native library missing) raises `OSError` on `import torch`; `load_sequence_classifier` caught only `ImportError`, so `--analyzer hf` crashed with a traceback. It now raises `ModelUnavailableError` (test `test_broken_torch_install_gives_a_clear_error`, fails without the fix).
+- Tests: see section 18. Docs: `services/nlp/README.md` (modules, evaluation how-to), `backend/README.md`, `docs/DATABASE.md` 5.6 notes, this file.
+
+### Phase 4.3 evaluation results (exact, from `python scripts/run_eval.py`)
+**Real model `cardiffnlp/twitter-roberta-base-sentiment-latest`: NOT RUN. No accuracy, Macro-F1, per-class metric, confusion matrix, margin sweep, throughput, cold start or memory exists for it. `neutral_margin` is unchanged at 0.15 (untuned).**
+
+The only numbers that exist are for the deterministic keyword **stub** (`stub-lexicon-v1`, a test double). They say nothing about the real model, must not be used to choose a model or a margin, and are inflated because the hand-written snippets use ordinary sentiment words that the stub's word list also contains:
+
+```text
+overall sentiment (stub): n=58 accuracy=0.9483 (55/58) macro_f1=0.9484
+  negative  precision 1.0000 recall 0.8333 f1 0.9091 support 18
+  neutral   precision 0.8800 recall 1.0000 f1 0.9362 support 22
+  positive  precision 1.0000 recall 1.0000 f1 1.0000 support 18
+  confusion (rows true, columns predicted: negative, neutral, positive)
+    negative  15  3  0
+    neutral    0 22  0
+    positive   0  0 18
+aspect detection (lexicon): recall 0.9733 (73/75 annotated aspects found); 9 more aspects detected but not annotated (labels are partial)
+  missed: s13:audio, s30:customer_support
+aspect sentiment (stub, annotated and detected): n=73 accuracy=0.8219 macro_f1=0.8237
+```
+Stub errors are all "negative/positive predicted neutral" (no stub word, or a contrast the clause splitter does not split). The two lexicon misses are real recall findings, independent of the model: `s13` misses `audio` because the audio lexicon has no bare `sound` (only `sound quality`), and `s30` misses `customer_support` because bare `support` is deliberately not a lexicon term (only `customer support`, `support team`, etc.). The lexicon was not changed.
+
+To get the real numbers on a machine with torch and Hugging Face access: `cd backend && pip install -e ".[nlp]" && python scripts/run_eval.py --analyzer hf --sweep --show-errors --json-out eval_hf.json`, then `pytest -m model tests/evals/test_real_sentiment_model.py`. Decide `neutral_margin` from the sweep table only if the accuracy/Macro-F1 differences are larger than the noise of a 58-item set (one item = 1.7 accuracy points); otherwise keep 0.15.
 
 ### Phase 2 work completed (2026-10-07)
 - Tables `serp_cache`, `serp_usage` (migration `0002`, models, DB-backed repositories).
@@ -144,7 +190,7 @@ When this pass began, `services/processing/cleaner.py`, `dates.py` and `normaliz
 | `pipeline/` | `process_raw_items.py` stage implemented (Phase 3.2); `analysis_pipeline`, `investigation_pipeline`, `jobs` still empty stubs (Phase 6) |
 | `services/serpapi` | Planned for Phase 2 |
 | `services/processing` | Implemented (Phase 3.2): cleaner, normalizer, dates, dedupe, processor. `pipeline/process_raw_items.py` wires it to the repositories; not yet called by `analysis_pipeline` |
-| `services/nlp` | Phase 4.1 implemented: `relevance`, `clauses`, `aspects`, `sentiment` (protocol + stub), `textnorm`; lexicons in `config/taxonomy.py`. `model_loader`, `keywords`, `topics` still empty. Not called by any pipeline |
+| `services/nlp` | Phase 4.1 implemented: `relevance`, `clauses`, `aspects`, `sentiment` (protocol + stub), `textnorm`; lexicons in `config/taxonomy.py`. `model_loader`, `hf_sentiment`, `analyzer_version`, `item_analysis` (4.2), `keywords`, `topics`, `evaluation` (4.3) implemented. Not called by any pipeline |
 | `services/signals`, `services/scoring` | Formula primitives implemented; pipeline/scoring service later |
 | `services/investigation` | Golden DTO display only; live pipeline later |
 | `services/competitors` | Golden display only; real snapshots later |
@@ -275,9 +321,9 @@ Credit plan (250): P2 ≤ 45 · P6 ≤ 40 · P7–8 ≤ 30 · Samsung pre-warm �
 Golden formula anchors are verified: growth `3.3×`, signal score `0.79`, health `73`, investigation confidence `86`, camera net `70`, battery net `-48`, Apple battery net `20`.
 ## 13. NLP Status
 
-**Implemented (not wired):** Phase 4.1: rule-based relevance, clause splitting, aspect lexicons, `SentimentAnalyzer` protocol and stub. Phase 4.2: `HFSentimentAnalyzer` + lazy `model_loader` (CPU torch, margin rule to neutral), `analyzer_version`, `item_analysis`, persistence (`content_analysis`, `item_aspects`, migration `0005`, repositories), reuse by `(content_hash, analyzer_version)`. **Still planned:** `keywords`, `topics`, eval set, model choice, real run, pipeline wiring. Decided direction (do not change): local BERT-family sentiment model (start with 3-class RoBERTa `cardiffnlp/twitter-roberta-base-sentiment-latest`, final choice by eval), CPU torch, margin rule -> neutral, deterministic stub for tests, clause-level sentiment, BERTopic/FAISS/embeddings deferred.
+**Implemented (not wired):** Phase 4.1: rule-based relevance, clause splitting, aspect lexicons, `SentimentAnalyzer` protocol and stub. Phase 4.2: `HFSentimentAnalyzer` + lazy `model_loader` (CPU torch, margin rule to neutral), `analyzer_version`, `item_analysis`, persistence (`content_analysis`, `item_aspects`, migration `0005`, repositories), reuse by `(content_hash, analyzer_version)`. Phase 4.3: `keywords`, `topics`, `evaluation`, labeled set, `scripts/run_eval.py`. **Still open:** model choice, real run, `neutral_margin` tuning, throughput/memory, pipeline wiring. Decided direction (do not change): local BERT-family sentiment model (start with 3-class RoBERTa `cardiffnlp/twitter-roberta-base-sentiment-latest`, final choice by eval), CPU torch, margin rule -> neutral, deterministic stub for tests, clause-level sentiment, BERTopic/FAISS/embeddings deferred.
 
-Metrics: eval dataset size UNKNOWN (target 40-60) · accuracy UNKNOWN (target >= 75%) · macro-F1 UNKNOWN (target >= 0.70) · aspect recall UNKNOWN · memory UNKNOWN · cold start UNKNOWN · throughput UNKNOWN. Selected model: not chosen (default id is only a starting point). **The real model has never been loaded or run**; `neutral_margin` 0.15 is a guess. To try it: `pip install -e ".[nlp]"` (CPU torch recommended), then `cd backend && pytest -m model tests/evals/test_real_sentiment_model.py`; the first run downloads the model from Hugging Face.
+Metrics: eval dataset size **58** (target 40-60; synthetic/hand-written, single annotator) · real-model accuracy UNKNOWN (target >= 75%) · real-model macro-F1 UNKNOWN (target >= 0.70) · aspect detection recall (lexicon, model-independent) **0.9733 (73/75)** · memory UNKNOWN · cold start UNKNOWN · throughput UNKNOWN. Stub-only numbers are in section 4 ("Phase 4.3 evaluation results") and are not model metrics. Selected model: not chosen (default id is only a starting point). **The real model has never been loaded or run**; `neutral_margin` 0.15 is a guess and was not tuned. To try it: `pip install -e ".[nlp]"` (CPU torch recommended), then `cd backend && pytest -m model tests/evals/test_real_sentiment_model.py`; the first run downloads the model from Hugging Face.
 
 ## 14. Signal Detection Status
 
@@ -301,7 +347,7 @@ Not implemented: generator, evidence linkage, priority from impact + confidence,
 
 | Category | Status |
 |---|---|
-| Backend full suite (2026-10-07, Phase 4.2 pass) | **1017 passed** with `TEST_DATABASE_URL` against local PostgreSQL 16 (apt); **790 passed, 227 skipped, 3 deselected** without it. As received (before 4.2): 860 passed with PostgreSQL, 685 + 175 skipped without. Earlier: 675 after Phase 3.2. Includes Phases 0, 1 (backend part), 2, 3.1, 3.2, 4.1 and 4.2 |
+| Backend full suite (2026-10-07, Phase 4.3 pass) | **1074 passed** with `TEST_DATABASE_URL` (local PostgreSQL 16); **847 passed, 227 skipped, 3 deselected** without it. Before 4.3 (as uploaded): 790 passed, 227 skipped, 3 deselected without PostgreSQL (the 2 NLP import-guard failures from the NumPy/Pydantic transitive import had been fixed in the commit `Fix NLP import guard tests`). Real NLP model not run |
 | Golden fixture/formulas | 7 passed in this execution environment |
 | OpenAPI export/drift | Verified by user's Windows run; `openapi.json` up to date |
 | Backend lint/format | Verified by user's Windows run |
@@ -312,6 +358,9 @@ Not implemented: generator, evidence linkage, priority from impact + confidence,
 | Phase 3.2 tests | Unit (no DB): `test_processing_cleaner_normalizer.py` (72), `test_processing_dates.py` (73), `test_processing_dedupe.py` (20), `test_processing_processor.py` (29). PostgreSQL: `test_content_item_repository.py` (15), `test_process_raw_items_pipeline.py` (11), `0004` additions in `test_migrations.py` (columns, defaults, indexes, FKs/cascade, every check constraint, downgrade to `0003`/`0002`). All use the synthetic SerpApi fixtures (14 content items across web, news, forums, YouTube) plus inline synthetic items for duplicates, syndication, bad URLs/titles. Four mutations (near-duplicate threshold, ignoring URL hash, ignoring dates for windows, pipeline ignoring stored hashes) each failed the tests, as they should |
 | Phase 4.1 tests | 185 cases in 5 files (`unit/test_nlp_*.py`), no DB. **Run only with a local pytest stand-in, not real pytest** (see top of file): 185 run, 0 failed. Mutations (dropped `but also` guard, tie-break `>` to `>=`, negation window 2 to 0) failed 1, 1 and 5 cases respectively, then restored. In the Phase 4.2 pass the same 185 cases passed under real pytest, as part of the full suite |
 | Phase 4.2 tests (2026-10-07) | 157 net new tests, run with real pytest: 45 (`test_nlp_hf_sentiment`) + 15 (`test_nlp_model_loader`, fake libraries and import guards) + 45 (`test_nlp_item_analysis`) + 23 (`test_content_analysis_repository`, PostgreSQL) + 29 net in `test_migrations` (123 -> 152, PostgreSQL); 3 more `model`-marked tests are deselected. Whole suite **1017 passed with PostgreSQL 16, 790 passed + 227 skipped without** (3 `model` tests deselected). Mutations that failed the tests as they should: margin `>=` -> `>`; reuse query without the `analyzer_version` filter; reuse query without the `is_about_brand` filter; reuse copying the source's `matched_terms`; `analyzer_version` without the category; singleton cache bypassed. The real model path is only tested with fake `torch`/`transformers` modules |
+| Phase 4.3 tests (2026-10-07) | 57 net new, real pytest: 23 `test_nlp_keywords_topics` (ranking, tie-breaks, stopwords, brand exclusion, caps, validation, topics dedupe/coverage), 31 `test_nlp_evaluation` (hand-computed metrics, perfect/worst/empty-class cases, dataset size/labels/provenance and that fixture-sourced items match the SerpApi fixtures, dataset validation errors, one-call runner on the PRD camera/battery case, aspect detection/sentiment counts, margin relabel equals an analyzer built with that margin, margin sweep monotonic neutral count, the script with the stub / JSON output / `--sweep` needing hf / unavailable real model prints no metrics / `--enforce` / bad margin, no model-library import), +2 `test_nlp_item_analysis` (keywords/topics filled, irrelevant items none, batch independence, version parts), +1 `test_nlp_model_loader` (broken torch install -> `ModelUnavailableError`). Updated one 4.2 integration assertion (`test_save_and_read_back_round_trip` expected empty keywords/topics; it now checks they survive the `text[]` columns). **Whole suite: 1074 passed with PostgreSQL 16 (apt, local); 847 passed, 227 skipped without; 3 `model` tests deselected.** Mutations that made tests fail as they should: keyword ranking order, brand-word exclusion in `extract_keywords`, topic coverage filter, Macro-F1 formula, aspect detection recall, brand exclusion in `item_analysis`, and the loader `OSError` fix reverted |
+| Backend lint/format (2026-10-07, Phase 4.3 pass) | `ruff check .` and `ruff format --check .` clean (170 files) |
+| Other checks (2026-10-07, Phase 4.3 pass) | `export_openapi.py --check` up to date; `validate_golden.py` ok; `check_type_contract.py` ok (75 schemas); `compileall` ok; `alembic upgrade head`, `alembic check` (no drift), `downgrade 0004`, re-upgrade ok on a blank DB (`alembic current` = `0005`); no migration added |
 | Backend lint/format (2026-10-07, Phase 4.2 pass) | `ruff check .` and `ruff format --check .` clean (167 files); one pre-existing 4.1 lint error (`UP033`) was fixed first |
 | Other checks (2026-10-07, Phase 4.2 pass) | `export_openapi.py --check` up to date; `validate_golden.py` ok; `check_type_contract.py` ok (75 schemas); `compileall` ok; `alembic upgrade head`, `alembic check` (no drift), `downgrade 0004`, re-upgrade ok on a blank DB (`alembic current` = `0005`) |
 | Frontend (this pass) | Not touched, not re-run |
@@ -332,13 +381,15 @@ CI has not been executed from this environment because it requires GitHub and np
 
 ```text
 Current branch: main (no other branch exists or was created)
-History: the original upload had no .git; the Phase 3.1 pass ran `git init -b main`. Local commits so far (commit 4 added in the Phase 4.1 pass, commit 5 in Phase 4.2):
+History: the original upload had no .git; the Phase 3.1 pass ran `git init -b main`. Local commits so far (commit 4 added in the Phase 4.1 pass, 5 and 6 in Phase 4.2, 8 in Phase 4.3):
   1. "Baseline: Phases 0-2 as uploaded" (the zip exactly as received)
   2. "Phase 3.1: RawItem contract and persistence"
   3. "Phase 3.2: normalization, dates, deduplication and content_items"
   4. "Phase 4.1: NLP foundation (relevance, clauses, aspects, SentimentAnalyzer + stub)"
   5. "docs: record blocked Phase 4.1 verification (no pytest/Ruff available)"
   6. "Phase 4.2: local model analyzer, content_analysis/item_aspects (0005), reuse by analyzer_version"
+  7. "Fix NLP import guard tests" (made before this pass, from the uploaded zip)
+  8. "Phase 4.3: keywords, topics, labeled eval set, run_eval.py"
 This history is local to the returned zip and is NOT connected to your own repository's history. If you already have commits, apply commits 2 onward as patches (`git format-patch d70a983`) instead of adopting this .git.
 Push/tag: not performed
 ```
@@ -352,6 +403,15 @@ Push/tag: not performed
 ## 22. Known Issues
 
 ```text
+Issue: Real NLP model never run (OPEN, Phase 4.3).
+Detail: Hugging Face hosts returned 403 from the sandbox and `pip install torch` ran out of disk (CUDA build). The three `model`-marked tests and `run_eval.py --analyzer hf` are untested against a real model. Possible real-library mismatches (label order, tokenizer options, memory) are unknown.
+Next: run the commands in section 4 ("Phase 4.3 evaluation results") on a machine with access.
+
+Issue: Eval set is small and weak evidence (OPEN, Phase 4.3).
+Detail: 58 items, single annotator, 5 synthetic fixture items + 53 hand-written, no real scraped snippets. One item = 1.7 accuracy points. Use it to catch gross failures, not to fine-tune `neutral_margin` to the second decimal.
+
+Issue: Lexicon recall gaps (OPEN, measured on the eval set).
+Detail: 2 of 75 annotated aspects were not detected (`s13:audio`: no bare `sound` term; `s30:customer_support`: bare `support` is excluded on purpose); aspect clauses that contain several contrasting words without a clause-splitting contrast word (for example "Great display, awful price") are scored as one clause.
 Issue: (RESOLVED 2026-10-07, Phase 4.2 pass) Phase 4.1 was not verified with real pytest or Ruff.
 Resolution: pip/apt worked in this pass; the 4.1 code passed under real pytest (860 passed as received) and Ruff format; one `ruff check` finding (UP033 in aspects.py) was fixed.
 ```
@@ -556,7 +616,15 @@ Decisions made in Phase 4.2 (2026-10-07, review them):
 - Both tables reference `content_items` with ON DELETE CASCADE (`item_aspects` references `content_items`, not `content_analysis`, per DATABASE.md).
 - Real-valued columns are float4 (`real`) as documented; round trips are approximate to ~1e-6.
 - No pipeline stage was added for NLP (Phase 6 wiring is out of scope). The "zero inference on re-run" behavior is proven by tests that run the stage sequence by hand (`run_stage` in the repository test) with a counting analyzer, not by a shipped stage.
-- `keywords`/`topics` columns exist and stay empty; `keywords.py`/`topics.py` remain empty files.
+- `keywords`/`topics` columns exist; they were empty in 4.2 and are filled from Phase 4.3.
+
+Decisions made in Phase 4.3 (2026-10-07, review them):
+
+- **Keywords/topics are wired into `analyze_items`** (a service, not the pipeline) so the stored columns are populated; this changed `analyzer_version` strings and one 4.2 integration assertion. If you want them kept out of `analyze_items` until Phase 6, revert that part only.
+- **Keywords are per-text frequency, not TF-IDF**, to keep results independent of the batch (reuse by `(content_hash, analyzer_version)`).
+- **The eval dataset lives in `tests/fixtures/nlp/`** (not a new top-level folder), labeled by the implementing agent. Please re-label or extend it with a second rater and real snippets once a live SerpApi session is approved.
+- **`docs/DATABASE.md` 5.6 implementation notes were edited in two sentences** (keywords/topics no longer empty; `analyzer_version` format) although AGENTS.md rule 8 says not to touch planning docs; these were the Phase 4.2 pass's own implementation notes and had become false.
+- The `--sweep` option works by re-applying the margin to the stored probabilities, so the margin tuning needs one model pass.
 
 ## 24. Files Changed in This Implementation Pass
 
@@ -613,6 +681,17 @@ Docs: docs/DATABASE.md (5.5 implementation notes, migration plan), backend/READM
 Unchanged: Phase 3.1 code, API routes, contracts/openapi.json, golden fixture, scoring, settings, frontend, parsers, fixtures, ARCHITECTURE.md and other docs, ci.yml (still empty)
 ```
 
+### Phase 4.3 pass (keywords, topics, evaluation)
+
+```text
+New: backend/app/services/nlp/evaluation.py, backend/tests/fixtures/nlp/sentiment_eval_v1.json, backend/tests/unit/test_nlp_keywords_topics.py, backend/tests/unit/test_nlp_evaluation.py
+Filled (was an empty file): backend/app/services/nlp/keywords.py, backend/app/services/nlp/topics.py, backend/scripts/run_eval.py
+Modified: backend/app/services/nlp/item_analysis.py (keywords/topics), analyzer_version.py (two rule versions), model_loader.py (OSError), backend/app/schemas/nlp.py (docstring only)
+Modified tests: tests/unit/test_nlp_item_analysis.py, tests/unit/test_nlp_model_loader.py, tests/integration/test_content_analysis_repository.py (one assertion), tests/evals/test_real_sentiment_model.py (docstring only)
+Docs: backend/app/services/nlp/README.md, backend/README.md, docs/DATABASE.md (5.6 implementation notes), docs/PROGRESS.md
+Unchanged: migrations, API routes, contracts/openapi.json, golden fixture, scoring, settings, frontend, pipeline/, parsers, SerpApi fixtures, ci.yml (still empty)
+```
+
 ### Phase 4.2 pass (local model and NLP persistence)
 
 ```text
@@ -627,7 +706,7 @@ Unchanged: Phase 4.1 behavior and interfaces, API routes, contracts/openapi.json
 
 ## 25. Next Steps
 
-0. Phases 2 to 4.2 verified locally on real pytest/Ruff/PG16 (section 18); the real NLP model has not been run (section 22). Review the three pre-existing processing files (section 4, Provenance). Reconcile the returned git history with your own repo (section 20).
+0. Phases 2 to 4.3 verified locally on real pytest/Ruff/PG16 (section 18); the real NLP model has not been run (section 22). Review the three pre-existing processing files (section 4, Provenance). Reconcile the returned git history with your own repo (section 20).
 1. Create the Supabase project and provide `DATABASE_URL` / `DATABASE_URL_DIRECT` when ready.
 2. Create/provide SerpApi and Groq keys; keep `ALLOW_LIVE_SERPAPI=false` until Phase 2 live-session approval.
 3. Run frontend `npm install`, `npm run generate:types`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` locally.
@@ -651,13 +730,30 @@ Phase 0 (contracts, backend skeleton), Phase 1 (golden frontend journey), Phase 
 - Reconcile the git history in the returned zip with your own repository (section 20).
 
 ### Exact next task
-Finish Phase 4 (`docs/DEVELOPMENT_PLAN.md`) only after you decide: (a) run the real model once (`pip install -e ".[nlp]"`, `pytest -m model tests/evals/test_real_sentiment_model.py`) and fix any real-library mismatch; (b) `keywords.py`, `topics.py`; (c) label 40-60 snippets, `scripts/run_eval.py`, tune `neutral_margin`, choose the model, record throughput/memory. Then Phase 5. Phase 6 will compose `analyze_items` + `ContentAnalysisRepository.copy_reusable` / `save_many` into a stage (the test helper `run_stage` in `tests/integration/test_content_analysis_repository.py` shows the intended sequence). Do not load the real model in default tests. Before Phase 6 wiring, supply `reference_times` from `serp_cache.fetched_at` (section 22). No live calls until `ALLOW_LIVE_SERPAPI=true` is approved.
+Close Phase 4 on a machine that has torch and Hugging Face access: (a) `cd backend && pip install -e ".[nlp]" && python scripts/run_eval.py --analyzer hf --sweep --show-errors --json-out eval_hf.json` and `pytest -m model tests/evals/test_real_sentiment_model.py`; fix any real-library mismatch; (b) record accuracy, Macro-F1, per-class metrics, confusion matrix, cold start, texts/second and peak memory in this file exactly as printed; (c) change `neutral_margin` (`DEFAULT_NEUTRAL_MARGIN` in `hf_sentiment.py`) only if the sweep shows a clear gain beyond the 1.7-point-per-item noise, then rerun; (d) decide whether the model meets the plan thresholds (accuracy >= 0.75, Macro-F1 >= 0.70) or evaluate another shortlist model (`ARCHITECTURE.md` 5.1). Then Phase 5. Phase 6 will compose `analyze_items` + `ContentAnalysisRepository.copy_reusable` / `save_many` into a stage (the test helper `run_stage` in `tests/integration/test_content_analysis_repository.py` shows the intended sequence). Do not load the real model in default tests. Before Phase 6 wiring, supply `reference_times` from `serp_cache.fetched_at` (section 22). No live calls until `ALLOW_LIVE_SERPAPI=true` is approved.
 
 ## 27. Definition of Current MVP Status
 
 ```text
-MVP STATUS: PHASES 0-3 + 4.1 + 4.2 IMPLEMENTED AND BACKEND-VERIFIED LOCALLY (NOT WIRED INTO A REAL RUN; REAL NLP MODEL NEVER RUN); EXTERNAL ACCOUNT SETUP PENDING
-CURRENT PHASE: 4 (steps 4.1, 4.2 done); rest of Phase 4 (keywords/topics, eval, real-model run) next
+MVP STATUS: PHASES 0-3 + 4.1 + 4.2 + 4.3 IMPLEMENTED AND BACKEND-VERIFIED LOCALLY (NOT WIRED INTO A REAL RUN; REAL NLP MODEL NEVER RUN); EXTERNAL ACCOUNT SETUP PENDING
+CURRENT PHASE: 4 (steps 4.1, 4.2, 4.3 done); Phase 4 closes only after the real-model run and margin decision
 CURRENT MILESTONE: M1 clickable demo, golden flow implemented (visual check pending)
-NEXT REQUIRED ACTION: run the real model once; review the three pre-existing processing files; manual visual check; supply external accounts/keys
+NEXT REQUIRED ACTION: run `scripts/run_eval.py --analyzer hf --sweep` and the `model` tests where torch and Hugging Face are reachable; review the three pre-existing processing files; manual visual check; supply external accounts/keys
 ```
+
+## Latest Checkpoint
+
+**Phase 4.3 is code-complete and backend-tested. Phase 4 is not closed: the real Hugging Face model was not run.**
+
+Latest verified state (2026-10-07):
+- 1074 backend tests passed with PostgreSQL 16 (847 passed, 227 skipped without), 3 `model` tests deselected
+- `ruff check .` and `ruff format --check .` clean; `compileall`, OpenAPI check, golden validation, type contract, Alembic upgrade/check/downgrade/re-upgrade ok
+- Eval set: 58 labeled items; stub-only metrics recorded in section 4 (not model metrics); lexicon aspect recall 73/75
+- `neutral_margin` unchanged at 0.15 (no real results to tune on)
+
+Next:
+1. On a machine with torch and Hugging Face access: run `scripts/run_eval.py --analyzer hf --sweep` and the `model` tests
+2. Record real accuracy, Macro-F1, per-class metrics, confusion matrix, throughput, cold start, memory
+3. Decide `neutral_margin` and the model from those results
+4. Finalize Phase 4
+5. Start Phase 5: Signals, Scoring and Brand Health
