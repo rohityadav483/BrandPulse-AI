@@ -1,39 +1,81 @@
 # BrandPulse AI — Development Progress
 
-> **Phase 6 implementation checkpoint (2026-10-07).** Pipeline/API wiring is implemented from the Phase 5 checkpoint: `POST /analyses`, estimate, list, status, dashboard, mentions, usage, health, signal detail, BackgroundTasks runner, concurrency semaphore, stale-job reaper, migration `0007` for `llm_calls`, and the collection→processing→NLP→signal→snapshot pipeline. Full backend suite remains green at 853 passed, 227 skipped, 3 deselected. **Not verified in this environment:** PostgreSQL runtime migration `0007`, live SerpApi, real Hugging Face model, live Groq, and a real end-to-end dashboard run. `ALLOW_LIVE_SERPAPI=false` remains the safe default.
+> **Current verification checkpoint (2026-10-08).** Phases 0–10 are implemented. The user's Windows environment has verified the backend, frontend, Supabase connectivity, real Hugging Face model loading, SerpApi/Groq key configuration, live-analysis estimator, and live analysis submission. A first live analysis was submitted with an 11-call SerpApi estimate, but it **failed before any SerpApi call** because a SQLAlchemy `Analysis` ORM instance was detached from its session inside the BackgroundTasks pipeline. This is now the primary blocker for live end-to-end validation. **Do not submit another live analysis until the session-lifecycle bug is fixed and regression-tested.**
 
-> **Phase 4.3 evidence (2026-10-07), read this first.** Environment: working `pip` and `apt`; **no access to Hugging Face** (`huggingface.co`, `hf-mirror.com` return HTTP 403 `host_not_allowed`; `cdn-lfs.huggingface.co` does not resolve) and no PyTorch index. Real tools ran: **pytest 9.1.1, Ruff 0.16.10, pydantic 2.13.5, SQLAlchemy 2.0.54, Alembic 1.20.0, PostgreSQL 16 (apt, local)**. Results after Phase 4.3: **1074 passed, 3 deselected (`model` marker) with `TEST_DATABASE_URL`; 847 passed, 227 skipped, 3 deselected without it** (previous baseline 790 passed + 227 skipped without PostgreSQL: +57 tests, 23 `test_nlp_keywords_topics`, 31 `test_nlp_evaluation`, +2 in `test_nlp_item_analysis`, +1 in `test_nlp_model_loader`). `ruff check .` and `ruff format --check .` clean (170 files); `compileall`, `export_openapi.py --check`, `validate_golden.py`, `check_type_contract.py` (75 schemas) ok; `alembic upgrade head`, `alembic check` (\"No new upgrade operations detected\"), `downgrade 0004`, re-upgrade ok (`alembic current` = `0005`); no new migration. Six deliberate mutations (keyword ranking, brand exclusion, topic dedupe, Macro-F1 formula, aspect recall, item_analysis brand exclusion) each made tests fail, plus one for the loader fix. **NOT verified, and no metric is claimed for it: the real Hugging Face model `cardiffnlp/twitter-roberta-base-sentiment-latest`.** A `pip install torch transformers` attempt failed with `No space left on device` (the PyPI Linux build pulls the CUDA stack); it was rolled back and the leftovers were removed. Even with torch the model weights cannot be downloaded from this sandbox. So accuracy, Macro-F1, per-class metrics, confusion matrix, throughput, cold start and memory **for the real model are UNKNOWN**, and `neutral_margin` stays at the untuned `0.15` (it can only be tuned from real-model probabilities). Not verified either: CI, frontend (untouched, not re-run), Supabase, any live SerpApi/Groq call.
+> **Latest live-test evidence (2026-10-08).** Health confirmed `database: ok`, `serpapi_configured: true`, and `groq_configured: true`. With `ALLOW_LIVE_SERPAPI=true`, the estimator returned `planned_calls=11`, `estimated_new_calls=11`, `remaining=250`, `reserve=20`, `live_enabled=true`, `can_run=true`. Analysis `caf41ddd-a68a-4190-b7ad-732eb9781395` was queued, then failed at `stage=planning`, `progress=5`, with `serp_calls_used=0`. Uvicorn logged `sqlalchemy.orm.exc.DetachedInstanceError` at `app/pipeline/analysis_pipeline.py:49` while `_window_set()` accessed `analysis.as_of_date`. **No SerpApi quota was consumed by this failed run.**
 
-> **Phase 4.2 evidence (2026-10-07), read this first.** Unlike the Phase 3.2/4.1 sandboxes, this pass had working `pip` and `apt` (network reachable), so the real tools ran: **pytest 9.1.1, Ruff 0.16.10, pydantic 2.13.5, SQLAlchemy 2.0.54, Alembic 1.20.0, PostgreSQL 16 (apt, local)**. Before any change the whole suite was run as received: **860 passed with `TEST_DATABASE_URL`** (685 passed + 175 skipped without it); `ruff format --check` clean; `ruff check` reported **one** error, `UP033` in `services/nlp/aspects.py` (Phase 4.1 code, `lru_cache(maxsize=None)`), fixed with the equivalent `functools.cache` (no behavior change). After Phase 4.2: **1017 passed with PostgreSQL; 790 passed, 227 skipped, 3 deselected (`model` marker) without**; `ruff check .` and `ruff format --check .` clean (167 files); `alembic upgrade head`, `alembic check` ("No new upgrade operations detected"), `downgrade 0004`, re-upgrade ok on a blank database; `export_openapi.py --check`, `validate_golden.py`, `check_type_contract.py` (75 schemas), `compileall` ok; six deliberate mutations each made the new tests fail. **This supersedes the Phase 4.1 "never run" caveats below for backend code: Phase 0-4.1 are now confirmed by real pytest/Ruff/PG16.** **NOT verified:** the real Hugging Face model (torch and transformers were not installed, no model files, the Hugging Face hub is not reachable from the sandbox), so `load_sequence_classifier` is only tested against fake `torch`/`transformers` modules and the `model`-marked test `tests/evals/test_real_sentiment_model.py` (3 tests) was only collected and skipped, never run against a real model; CI; frontend (untouched, not re-run); Supabase; any live SerpApi/Groq call. `ci.yml` and `contracts/demo/samsung_s25_ultra.json` are still 0-byte files in the zip.
+> **Latest test status (2026-10-08).** Backend `python -m pytest -q`: **873 passed, 227 skipped, 3 deselected**. Frontend `npm test`: **21/21 passed**; `npm run lint`: clean; `npm run build`: passed. `python -m alembic check`: **No new upgrade operations detected**; `python -m alembic current`: **`0010 (head)`**. The real Hugging Face model `cardiffnlp/twitter-roberta-base-sentiment-latest` has now been successfully loaded and directly exercised in the Windows environment; the standalone analyzer returned a positive prediction (~0.97345 positive probability) for a Samsung camera sentence. FastAPI health may report `nlp: loading` before the model is used because model loading is intentionally lazy and process-local.
 
-> **Verification retry (2026-10-07, after Phase 4.1): BLOCKED, nothing new was verified.** Asked to run `pytest`, `ruff check .` and `ruff format --check .` in `backend/`, the environment still could not install them: `pip install pytest ruff pydantic` finds no distribution and a direct request to pypi.org returns HTTP 403 (network disabled for the sandbox; enable it in network settings). No failures were found or fixed because the tools never ran. Phase 0-3 intactness is **not confirmed by a test run**; the only evidence is that the Phase 4.1 commit changed no existing code file (only `config/taxonomy.py`, previously an empty file, the empty `services/nlp/*.py` stubs, new tests and docs). The 185-case stand-in run from the note below is the only test evidence. Everything under "First action next session" below is still required.
->
-> **Phase 4.1 evidence (2026-10-07), read this first:** the Phase 4.1 environment had **no pytest, Ruff, pydantic, SQLAlchemy or network access** (`pip install` failed offline). So in this pass **pytest, `ruff check`, `ruff format --check`, the full backend suite, Alembic and every pre-existing test were NOT run**. What was run: the 185 new NLP tests, executed with a ~40-line stand-in for `pytest` (parametrize, raises, approx) kept outside the repo, `compileall`, an AST check for unused imports, a 100-column line-length check, and three deliberate mutations (each made the new tests fail). The new code is stdlib-only and no existing file outside docs was changed, so Phase 1-3 should be unaffected, but that is **unverified**. First action next session: `cd backend && pytest && ruff check . && ruff format --check .`, fix anything they report.
->
-> **Evidence basis for the Phase 3.2 figures below (2026-10-07, Phase 3.2 pass):** the repo was inspected as an extracted zip (`BrandPulse-AI-phase2.zip`, **no `.git` directory** in the upload; local git history created in the Phase 3.1 pass). Verified by running in this pass against a local PostgreSQL 16.15: **675 backend tests passed** with `TEST_DATABASE_URL` (500 passed, 175 skipped without it; Phase 3.1 ended at 405), `ruff check` and `ruff format --check` clean (146 files), `alembic upgrade head` + `alembic check` ("No new upgrade operations detected") + `downgrade 0003` + re-upgrade on a blank database, `export_openapi.py --check`, `validate_golden.py`, `check_type_contract.py`, `compileall`, and four deliberate code mutations (each made the new tests fail). Not run: frontend (untouched), CI, Supabase, any live SerpApi/Groq call.
-> Anything not listed as verified below stays **NOT STARTED** or **UNKNOWN**. **First action of any agent with repo access: inspect the repo, then correct this file.** Never assume a planned feature exists.
+> **Next action.** Perform a full read-only codebase audit before making broad fixes. Claude should inspect the entire repository and create `FIXES_REQUIRED.md` listing only verified issues. The current known blocker is the BackgroundTasks/SQLAlchemy detached-instance problem; do not treat older historical “Phase 5/6 pending” notes as current status where they conflict with this checkpoint.
 
 ---
+## Latest User Verification — Windows (2026-10-07 → 2026-10-08)
 
+The user independently reran the backend, NLP, frontend, database, configuration, and live-analysis checks from `C:\AntiGravity\BrandPulseAI`. These results supersede older local-verification statements where they conflict.
 
-## Latest User Verification — Windows (2026-10-07)
+### Backend
+- `python -m pytest -q`: **873 passed, 227 skipped, 3 deselected** in ~69s.
+- Post-test Hugging Face/httpx cleanup emitted `ValueError: I/O operation on closed file` logging traces after the suite had already passed. These are cleanup-time logging errors, not test failures; retain as a follow-up risk unless they affect CI/process exit.
+- Ruff was intentionally not used as the release gate; earlier user runs had `ruff check .` clean.
 
-The user independently reran the available backend, NLP, frontend, and database checks from `C:\AntiGravity\BrandPulseAI` on Windows. These results supersede older local-verification statements where they conflict.
+### Frontend
+- `npm test`: **21/21 tests passed**.
+- `npm run lint`: **clean**.
+- `npm run build`: **passed**.
+- Next.js generated the expected routes including `/analyze`, `/analyze/[id]`, `/dashboard/[id]`, `/evidence/[id]`, `/investigate/[id]`, `/signals/[id]`, and `/competitors/[id]`.
 
-- Backend `pytest -q`: **847 passed, 227 skipped, 3 deselected** in ~44s.
-- Backend `pytest -q --maxfail=1`: **847 passed, 227 skipped, 3 deselected** in ~40s.
-- `ruff check .`: **clean**.
-- `ruff format --check .`: **170 files already formatted**.
-- `python -m compileall app`: **passed**.
-- Stub NLP evaluation: **accuracy 0.9483, Macro-F1 0.9484**; aspect detection recall **0.9733 (73/75)**; aspect sentiment accuracy **0.8219**, Macro-F1 **0.8237**. These remain **stub-only metrics**, not real-model metrics.
-- Frontend `npm install`: completed; npm reported **15 vulnerabilities (3 moderate, 9 high, 3 critical)**. No `npm audit fix --force` was run.
-- Frontend `npm run lint`: **clean**.
-- Frontend `npm run test`: **21/21 tests passed**.
-- Frontend `npm run build`: **passed**.
-- Frontend `npm run dev`: started successfully at `http://localhost:3000`; golden routes compiled successfully during the smoke run.
-- `python -m alembic current`: initially exposed a stale `alembic.exe` launcher pointing to the old `.env` virtualenv; using `python -m alembic` bypassed that launcher issue.
-- After correcting the configured Supabase connection string/network path: `python -m alembic upgrade head` **passed**, `python -m alembic check` returned **No new upgrade operations detected**, and `python -m alembic current` returned **`0005 (head)`**.
-- Therefore the configured Supabase PostgreSQL connection is now reachable for Alembic and the database is at migration head `0005`. Application `/health` against this Supabase database and live application data flow remain unverified.
+### Database / Alembic
+- `python -m alembic check`: **No new upgrade operations detected**.
+- `python -m alembic current`: **`0010 (head)`**.
+- No migration `0011` is required by the current model state.
+- The standalone `alembic.exe` launcher previously pointed at the obsolete `.env` virtualenv; use `python -m alembic` on Windows.
+
+### Real NLP model
+- `python -m pip install -e ".[nlp]"` succeeded in the user's Python 3.14.3 environment.
+- `cardiffnlp/twitter-roberta-base-sentiment-latest` successfully downloaded and loaded.
+- Direct `HFSentimentAnalyzer` test succeeded:
+  - Before: `False`
+  - After: `True`
+  - Positive probability: approximately `0.97345` for the test sentence.
+- Model loading is intentionally lazy and cached per FastAPI process, so `/health` can report `nlp: loading` before any inference occurs. This is expected behavior.
+
+### External API configuration
+- Supabase/PostgreSQL: **configured and reachable**.
+- SerpApi: **configured**.
+- Groq: **configured**.
+- `ALLOW_LIVE_SERPAPI=true` was enabled for the controlled live probe.
+- Do not commit `.env` or expose the keys.
+
+### Live estimator
+For Samsung / Galaxy S25 Ultra / Apple + OnePlus / 30 days / as-of `2026-08-10`:
+- `planned_calls`: **11**
+- `cached_calls`: **0**
+- `estimated_new_calls`: **11**
+- SerpApi limit: **250**
+- Used before live run: **0**
+- Remaining: **250**
+- Reserve: **20**
+- `live_enabled`: **true**
+- `can_run`: **true**
+
+### First live analysis
+Analysis ID: `caf41ddd-a68a-4190-b7ad-732eb9781395`
+
+Observed:
+- POST `/api/v1/analyses`: **202**, status `queued`.
+- Final status: **failed**.
+- Stage: `planning`.
+- Progress: `5`.
+- SerpApi calls used: **0**.
+- Failure: `sqlalchemy.orm.exc.DetachedInstanceError`.
+- Root location:
+  - `app/pipeline/analysis_pipeline.py:317` → `windows = _window_set(analysis)`
+  - `app/pipeline/analysis_pipeline.py:49` → `analysis.as_of_date`
+- Meaning: the background pipeline accessed an expired/detached SQLAlchemy ORM `Analysis` instance after its original session had closed.
+- **Impact:** live end-to-end validation is blocked.
+- **Quota impact:** none; the failed run consumed **0 SerpApi calls**.
+
+Do not create another live analysis until this is fixed and regression-tested.
 
 [PREVIOUS VERIFICATION — 2026-10-07, superseded by the Phase 4.3 evidence at the top]
 - Uploaded Phase 4.2 code was retested after the previous verification.
@@ -49,39 +91,46 @@ The user independently reran the available backend, NLP, frontend, and database 
 ## 1. Current Status
 
 ```text
-MVP STATUS: PHASES 0–4.3 IMPLEMENTED; BACKEND VERIFIED LOCALLY (847 passed on the user's Windows environment without TEST_DATABASE_URL; 1074 passed in the PostgreSQL verification environment); PHASE 4 REAL-MODEL VALIDATION STILL PENDING (real model never run)
-CURRENT PHASE: 6 (analysis pipeline); Phase 4 real-model validation remains pending, Phase 5 core is implemented, and Phase 6 pipeline/API wiring is implemented but live end-to-end validation is pending
-CURRENT MILESTONE: M1 (Clickable demo) + Phase 7 investigation implementation; live external E2E and frontend real-mode verification remain pending
-OVERALL COMPLETION: Phases 0–4.3 implemented; Phase 5 core implemented; Phase 6 pipeline/API wiring implemented; live e2e and Phase 7+ remain
-LAST UPDATED: 2026-10-07 (Phase 5 core implementation checkpoint)
+MVP STATUS: PHASES 0–10 IMPLEMENTED; FINAL LIVE E2E VALIDATION BLOCKED BY A VERIFIED SQLAlchemy BACKGROUND-TASK SESSION BUG
+CURRENT PHASE: FINAL TESTING & VALIDATION
+CURRENT MILESTONE: M4 Demo-ready / live validation
+OVERALL COMPLETION: Feature implementation complete; final runtime audit and live E2E hardening remain
+LAST UPDATED: 2026-10-08
+KNOWN BLOCKER: DetachedInstanceError in analysis_pipeline.py when the BackgroundTasks pipeline accesses the detached Analysis ORM instance
+SERPAPI QUOTA IMPACT: 0 calls consumed by the failed live run
+NEXT ACTION: Read-only full-codebase audit → FIXES_REQUIRED.md → fix verified issues → regression suite → one controlled live rerun
 ```
+
 ## 2. Executive Summary
 
-- **Works (verified from the user's latest Windows run):** backend 847 tests passed (227 skipped, 3 deselected), Ruff check/format passed, Python compileall passed, frontend lint/test/build passed, frontend dev server started, and Alembic reached `0005 (head)` with no pending operations.
-- **Implemented in this pass:** golden Samsung fixture + formula tests, deterministic scoring helpers, Next.js/TypeScript/Tailwind frontend, typed API client with golden mode, golden dashboard → investigation → evidence flow, scoring/design docs, CI workflow, frontend/backend module READMEs, and contract coverage checks.
-- **Phase 3.1 (2026-10-07):** canonical `RawItem` contract hardened, `raw_items` table (migration `0003`), `RawItemRepository`, 108 new tests; Phase 2 verified for the first time on real pytest/Ruff/PostgreSQL (see section 18).
-- **Phase 3.2 (2026-10-07):** `services/processing` (cleaner, normalizer, dates, dedupe, processor), `content_items` table (migration `0004`), `ContentItemRepository`, pipeline stage `process_raw_items` (reads `raw_items`, writes `content_items`), 270 new tests. See section 4.
-- **Phase 4.1 (2026-10-07):** `services/nlp` foundation: rule-based relevance, clause splitting, aspect lexicon (`config/taxonomy.py`), `SentimentAnalyzer` protocol + deterministic stub, 185 new unit tests. No model, DB, API or pipeline change. See section 4 and the verification caveat at the top of this file.
-- **Phase 4.2 (2026-10-07):** `HFSentimentAnalyzer` + lazy `model_loader` (torch/transformers imported only on first inference), `analyzer_version`, `item_analysis`, tables `content_analysis` / `item_aspects` (migration `0005`), `ContentAnalysisRepository` / `ItemAspectRepository`, reuse by `(content_hash, analyzer_version)`. 157 net new tests (1017 total with PostgreSQL). Real model **not run**. No pipeline, API, OpenAPI, frontend or Phase 4.1 behavior change. See section 4.
-- **Phase 4.3 (2026-10-07):** `services/nlp/keywords.py` + `topics.py` (deterministic, per-text), wired into `analyze_items` (so `content_analysis.keywords/topics` are now filled; `analyzer_version` gained `keywords-1|topics-1`), `services/nlp/evaluation.py` (pure metrics/runner), labeled set `tests/fixtures/nlp/sentiment_eval_v1.json` (58 items), `scripts/run_eval.py`. One bug found and fixed: a half-installed torch raises `OSError` on import, which `load_sequence_classifier` did not turn into `ModelUnavailableError`. Real model **not run** (Hugging Face unreachable). No pipeline, API, OpenAPI, frontend, migration, SerpApi or Groq change. See section 4 and section 13.
-- **External services:** the configured Supabase PostgreSQL connection is now verified through Alembic (`0005 (head)` and no pending operations). SerpApi and Groq account/keys/live calls remain pending; no live SerpApi/Groq calls were made.
-- **Frontend verification (latest Windows run):** `npm install`, lint, 21 tests and production build passed; `next dev` started successfully and compiled the golden routes. A full browser visual check is still pending.
-- **Can it be demonstrated?** Yes. Golden mode needs only the frontend (see section 7b); no external credits are required.
+- **Backend:** 873 passed, 227 skipped, 3 deselected in the latest Windows run.
+- **Frontend:** 21/21 tests passed, lint clean, production build passed.
+- **Database:** Alembic `0010 (head)`; `alembic check` reports no pending operations.
+- **Supabase:** configured and reachable.
+- **Real NLP:** the configured BERT-family model successfully loads and runs locally.
+- **SerpApi:** key configured; live mode was explicitly enabled for the controlled probe.
+- **Groq:** key configured.
+- **Live estimator:** verified; the demo analysis plans 11 new SerpApi calls and remains within the 250-call monthly budget.
+- **First live analysis:** failed at planning before any SerpApi request because of a SQLAlchemy `DetachedInstanceError`.
+- **Current priority:** full read-only codebase audit and verified-fix inventory before further live calls.
+- **Golden/demo path:** remains the safe fallback and does not require live external credits.
+
 ## 3. Phase Progress
 
 | Phase | Name | Status | Key Result |
 |------|------|--------|------------|
-| 0 | Foundations and contracts | IMPLEMENTED / EXTERNAL SETUP PENDING | Backend contracts, golden fixture, frontend golden flow, docs and CI scaffold are present |
-| 1 | Frontend on golden data | IMPLEMENTED (visual check pending) | Landing → analyze (estimate + confirm dialog) → simulated progress → dashboard (health, sentiment, aspect drawer, trend, signal card) → investigation → evidence → competitors; states + 21 frontend tests |
-| 2 | SerpApi layer and budget machinery | IMPLEMENTED (verified by real pytest/Ruff/PG16 on 2026-10-07; no live probe yet) | Migration `0002`, client, cache, budget/usage, estimator, planner, 5 parsers, synthetic fixtures, safe recorder script. See sections 11, 18, 22 |
-| 3 | Processing and persistence | IMPLEMENTED (3.1 + 3.2; not wired into `analysis_pipeline`, verified on local PG 16 only) | **3.1:** `RawItem` contract, `raw_items` (`0003`), `RawItemRepository`. **3.2:** `cleaner`, `normalizer`, `dates`, `dedupe`, `processor`, `content_items` (`0004`), `ContentItemRepository`, stage `pipeline/process_raw_items.py` |
-| 4 | Local NLP | IN PROGRESS (4.1, 4.2, 4.3 done; not wired; real model never run) | **4.1:** `relevance`, `clauses`, `aspects` + lexicons in `config/taxonomy.py`, `SentimentAnalyzer` + stub. **4.2:** `HFSentimentAnalyzer`, `model_loader`, `analyzer_version`, `item_analysis`, `content_analysis` + `item_aspects` (`0005`), both repositories, reuse by `(content_hash, analyzer_version)`. **4.3:** `keywords`, `topics`, `evaluation`, labeled set (58 items), `scripts/run_eval.py`. **Not done:** running the real model, `neutral_margin` tuning, model choice, throughput/memory measurement, pipeline wiring |
-| 5 | Signals, scoring and brand health | CORE IMPLEMENTED / PIPELINE PENDING | Window metrics, signal detection/scoring, confidence, Brand Health, Trends corroboration, Phase 5 DB schema/repositories; pipeline wiring remains Phase 6 |
-| 6 | Analysis pipeline and first real end-to-end | IMPLEMENTED / LIVE VALIDATION PENDING | Collection → raw → processing → NLP → signals → snapshots; API lifecycle/usage/health wired; live SerpApi and PostgreSQL e2e still pending |
-| 7 | Groq and investigation | IMPLEMENTED / LIVE VALIDATION PENDING | Investigation pipeline, evidence persistence, bounded Groq/fallback, confidence and APIs |
-| 8 | Competitors and recommendations | IMPLEMENTED / LIVE VALIDATION PENDING | Current-window competitor comparison, scope verdict, evidence-linked recommendations, migration `0009`; frontend report components already consume the API fields |
-| 9 | Hardening and testing | IMPLEMENTED / ENVIRONMENT VALIDATION PENDING | Failure-path coverage, NLP readiness gate/health, secret-safe logging, empty-data warning, RLS migration `0010`; PostgreSQL/Ruff/UI runtime validation still pending |
-| 10 | Demo bundle, pre-warm, polish and rehearsal | IMPLEMENTED / LIVE PRE-WARM PENDING | File-backed demo fallback, export/validation/rehearsal scripts, pinned-cache export path; live pre-warm still requires credentials and a real run |
+| 0 | Foundations and contracts | IMPLEMENTED | Contracts, project foundation, docs and configuration |
+| 1 | Frontend on golden data | IMPLEMENTED | Complete golden UI journey and frontend tests |
+| 2 | SerpApi layer and budget machinery | IMPLEMENTED / LIVE VERIFIED PARTIALLY | Client, cache, quota, estimator, planner, parsers; key configured and estimator verified; first live run did not reach SerpApi |
+| 3 | Processing and persistence | IMPLEMENTED | Raw/content processing and persistence |
+| 4 | Local NLP | IMPLEMENTED / REAL MODEL VERIFIED | Real `cardiffnlp/twitter-roberta-base-sentiment-latest` now loads and runs locally; formal evaluation metrics/tuning remain a separate validation task |
+| 5 | Signals, scoring and brand health | IMPLEMENTED | Scoring, signals, confidence, snapshots |
+| 6 | Analysis pipeline and first real end-to-end | IMPLEMENTED / BLOCKED ON RUNTIME FIX | Full pipeline/API wiring exists; first live run exposed detached SQLAlchemy session bug before collection |
+| 7 | Groq and investigation | IMPLEMENTED / LIVE E2E PENDING | Investigation, evidence, Groq/fallback |
+| 8 | Competitors and recommendations | IMPLEMENTED / LIVE E2E PENDING | Competitor comparison and recommendations |
+| 9 | Hardening and testing | IMPLEMENTED / FINAL AUDIT | Failure handling, readiness, logging, RLS and tests |
+| 10 | Demo bundle, pre-warm, polish and rehearsal | IMPLEMENTED / LIVE RECORDING PENDING | Bundle fallback, export, validation and rehearsal tooling |
+
 ## Phase 10 implementation notes
 
 - Added `backend/app/services/demo_bundle.py` for a read-only file-backed Samsung fallback.
@@ -91,6 +140,54 @@ LAST UPDATED: 2026-10-07 (Phase 5 core implementation checkpoint)
 - Added `backend/scripts/rehearse_demo.py` for a no-network local API rehearsal.
 - `contracts/demo/samsung_s25_ultra.json` is currently the validated synthetic fallback derived from the golden fixture; it is **not** claimed to be a live recording. Run `export_demo_bundle.py` after a successful live run to replace it with a verified export.
 - Frontend golden mode remains available as the zero-dependency UI fallback.
+
+## 4. Current Live Validation Incident
+
+### First controlled live run — 2026-10-08
+
+Request:
+- Brand: Samsung
+- Product: Galaxy S25 Ultra
+- Competitors: Apple, OnePlus
+- Category: consumer_electronics
+- Period: 30 days
+- As-of date: 2026-08-10
+
+Estimator:
+- Planned calls: 11
+- Estimated new calls: 11
+- Cached calls: 0
+- SerpApi remaining: 250
+- Reserve: 20
+- Live enabled: true
+- Can run: true
+
+Result:
+- Analysis ID: `caf41ddd-a68a-4190-b7ad-732eb9781395`
+- HTTP create response: 202 / queued
+- Final status: failed
+- Stage: planning
+- Progress: 5
+- SerpApi calls used: 0
+
+Root cause:
+```text
+sqlalchemy.orm.exc.DetachedInstanceError
+```
+
+Traceback location:
+```text
+app/pipeline/analysis_pipeline.py:317
+    windows = _window_set(analysis)
+
+app/pipeline/analysis_pipeline.py:49
+    as_of_date=analysis.as_of_date
+```
+
+Interpretation:
+The `Analysis` ORM instance is detached/expired when the background task accesses it after the original request session has closed. The preferred fix is to pass the analysis ID into the background job, create a fresh session inside that job, reload the row, and keep all required ORM access within the job's session lifecycle. Confirm this against the full codebase before changing it.
+
+Do not submit another live analysis until the issue is fixed and regression-tested.
 
 ## 4. Current Phase
 
@@ -754,58 +851,71 @@ Unchanged: Phase 4.1 behavior and interfaces, API routes, contracts/openapi.json
 
 ## 25. Next Steps
 
-0. **Completed by the user on 2026-10-07:** Windows backend/frontend verification and Supabase Alembic migration verification. See “Latest User Verification” and section 18.
-1. Run the real Hugging Face NLP evaluation on a machine with torch + Hugging Face access; record real accuracy, Macro-F1, per-class metrics, confusion matrix, throughput, cold start and memory; tune `neutral_margin` only from real-model results.
-2. Perform the manual desktop/mobile visual check against `docs/DESIGN_SYSTEM.md`.
-3. Review the three pre-existing processing files (`cleaner.py`, `dates.py`, `normalizer.py`) as documented in the provenance section.
-4. Reconcile the returned ZIP's local git history with the user's actual GitHub repository; keep work on `main` only.
-5. Create/provide SerpApi and Groq keys when ready; keep `ALLOW_LIVE_SERPAPI=false` until the first approved live probe.
-6. Approve one small SerpApi live probe, verify the 11 assumptions in `docs/SERPAPI_FINDINGS.md`, and record real fixtures.
-7. After Phase 4 is closed, start **Phase 5 — Signals, Scoring and Brand Health**.
+1. **Run the full read-only codebase audit.** Claude should inspect the entire repository without modifying production code.
+2. Create `FIXES_REQUIRED.md` containing only verified issues, with severity, file/location, root cause, impact, required fix and suggested regression test.
+3. Fix the confirmed SQLAlchemy `DetachedInstanceError` using a safe background-session lifecycle design; do not blindly disable SQLAlchemy expiration globally.
+4. Add a regression test that reproduces the background-task/session-boundary failure.
+5. Run the full backend regression suite and frontend checks after the fix.
+6. Run `python -m alembic check` and `python -m alembic current`; do not create unnecessary migrations.
+7. Check SerpApi usage before any further live call. The failed live run consumed 0 calls.
+8. Perform exactly one controlled live analysis after the session bug and other verified blockers are fixed.
+9. Verify the complete live path: SerpApi → processing → real NLP → signals/snapshots → Groq/investigation → PostgreSQL → frontend.
+10. If the live run succeeds, export/pin a verified demo bundle and rehearse the final demo.
+
 ## 26. AI Handoff
 
 ### Current Situation
-Phase 0 (contracts, backend skeleton), Phase 1 (golden frontend journey), Phase 2 (SerpApi layer, code only) and Phase 3 (3.1 RawItem + `raw_items`, 3.2 processing + `content_items`) are implemented. Scope for Phase 1 followed `docs/PHASES.md`; a request to build the backend/real pipeline under the name "Phase 1" was resolved with the user as: docs Phase 1 only.
+The project has reached final testing/validation. The implementation through Phase 10 exists and the major local checks are passing. The first controlled live analysis exposed a real runtime bug before any SerpApi call.
 
 ### Verified
-- Backend: 155 passed / 31 skipped, OpenAPI check, golden validation, type contract (75 schemas), ruff check/format, compileall.
-- Frontend: typecheck, lint, 21 tests, build, route smoke test.
-- No live external services contacted; golden JSON and OpenAPI untouched.
+- Backend: **873 passed, 227 skipped, 3 deselected**.
+- Frontend: **21/21 tests passed**, lint clean, build passed.
+- Alembic: **`0010 (head)`**, no pending operations.
+- Supabase connection: configured/reachable.
+- Real Hugging Face model: successfully downloaded, loaded and directly exercised.
+- SerpApi and Groq keys: configured.
+- Live estimator: 11 planned/new calls, 250 remaining, reserve 20, `can_run=true`.
+- First live analysis: queued successfully but failed at planning with `DetachedInstanceError`.
+- SerpApi calls consumed by the failed run: **0**.
 
-### Pending
-- Restoring `ci.yml` (empty in the zip), first live probe (needs approval), real fixtures, `probe_demo_signal.py`, `warm_demo_cache.py`.
-- Manual visual check (desktop + mobile) against `docs/DESIGN_SYSTEM.md`.
-- External account creation/keys (Supabase, SerpApi, Groq).
-- Reconcile the git history in the returned zip with your own repository (section 20).
+### Current blocker
+`app/pipeline/analysis_pipeline.py` accesses a detached SQLAlchemy `Analysis` ORM object in the background task. The traceback reaches `_window_set(analysis)` and `analysis.as_of_date`.
 
-### Exact next task
-Continue Phase 5 core verification, then begin Phase 6 pipeline wiring. Phase 4 real-model validation can remain an independent pending task: (a) `cd backend && pip install -e ".[nlp]" && python scripts/run_eval.py --analyzer hf --sweep --show-errors --json-out eval_hf.json` and `pytest -m model tests/evals/test_real_sentiment_model.py`; fix any real-library mismatch; (b) record accuracy, Macro-F1, per-class metrics, confusion matrix, cold start, texts/second and peak memory in this file exactly as printed; (c) change `neutral_margin` (`DEFAULT_NEUTRAL_MARGIN` in `hf_sentiment.py`) only if the sweep shows a clear gain beyond the 1.7-point-per-item noise, then rerun; (d) decide whether the model meets the plan thresholds (accuracy >= 0.75, Macro-F1 >= 0.70) or evaluate another shortlist model (`ARCHITECTURE.md` 5.1). Then start Phase 5. Phase 6 will compose `analyze_items` + `ContentAnalysisRepository.copy_reusable` / `save_many` into a stage. Do not load the real model in default tests. Before Phase 6 wiring, supply `reference_times` from `serp_cache.fetched_at`. No live SerpApi calls until `ALLOW_LIVE_SERPAPI=true` is approved.
+### Required workflow
+1. Read-only full-codebase audit.
+2. Produce `FIXES_REQUIRED.md`.
+3. Fix only verified issues.
+4. Add regression coverage.
+5. Run full regression checks.
+6. Perform one controlled live rerun.
+
+Do not submit another live analysis before the blocker is fixed.
 
 ## 27. Definition of Current MVP Status
 
 ```text
-MVP STATUS: PHASES 0-4.3 IMPLEMENTED; PHASE 5 CORE IMPLEMENTED AND BACKEND-TESTED; REAL NLP MODEL NEVER RUN; SUPABASE ALEMBIC CONNECTIVITY VERIFIED; SERPAPI/GROQ LIVE SETUP PENDING
-CURRENT PHASE: 5 (core complete; Phase 6 pipeline wiring next)
-CURRENT MILESTONE: M1 clickable demo, golden flow implemented; frontend lint/test/build and dev-server smoke verified; visual check pending
-NEXT REQUIRED ACTION: verify Phase 5 migration/repositories on PostgreSQL, then implement Phase 6 analysis pipeline. Real NLP-model validation remains pending and should not block Phase 6 architecture work.
+MVP STATUS: FEATURE-COMPLETE; FINAL LIVE VALIDATION BLOCKED BY A VERIFIED RUNTIME SESSION BUG
+CURRENT PHASE: FINAL TESTING & VALIDATION
+CURRENT MILESTONE: M4 DEMO-READY
+LIVE PROVIDERS: KEYS CONFIGURED; FIRST LIVE ANALYSIS ATTEMPTED
+KNOWN BLOCKER: SQLAlchemy DetachedInstanceError in BackgroundTasks pipeline
+SERPAPI QUOTA USED BY FAILED RUN: 0
+NEXT REQUIRED ACTION: FULL READ-ONLY CODEBASE AUDIT + FIXES_REQUIRED.md
 ```
 
 ## Latest Checkpoint
 
-**Phase 4.3 is code-complete and backend-tested. Phase 4 real-model validation remains pending. Phase 5 core is implemented and backend-tested.**
+**2026-10-08 — Final validation checkpoint**
 
-Latest verified state (2026-10-07):
-- User Windows backend: **847 passed, 227 skipped, 3 deselected**; `pytest -q --maxfail=1` also passed with the same result.
-- User Windows backend quality: `ruff check .` clean, `ruff format --check .` clean for 170 files, `compileall app` passed.
-- User Windows NLP stub evaluation: accuracy **0.9483**, Macro-F1 **0.9484**; aspect recall **0.9733 (73/75)**; aspect sentiment accuracy **0.8219**, Macro-F1 **0.8237**. These are stub metrics only.
-- User Windows frontend: `npm install` completed, lint passed, **21/21 tests passed**, production build passed, and `npm run dev` started successfully.
-- User Windows database: `python -m alembic upgrade head` passed; `python -m alembic check` reported **No new upgrade operations detected**; `python -m alembic current` returned **`0005 (head)`**.
-- Supabase PostgreSQL connectivity is therefore verified at the Alembic level; application runtime against Supabase remains unverified.
-- Real Hugging Face model `cardiffnlp/twitter-roberta-base-sentiment-latest` remains **NOT RUN**; `neutral_margin` remains 0.15 and untuned.
-
-Next:
-1. Run the real-model evaluation where torch and Hugging Face are reachable.
-2. Record real accuracy, Macro-F1, per-class metrics, confusion matrix, throughput, cold start and memory.
-3. Decide `neutral_margin` and the model from those results.
-4. Perform the manual desktop/mobile visual check.
-5. Finalize Phase 4 and start Phase 5: Signals, Scoring and Brand Health.
+- Backend: **873 passed, 227 skipped, 3 deselected**.
+- Frontend: **21/21 tests passed**, lint clean, production build passed.
+- Alembic: **`0010 (head)`**, no schema drift.
+- Supabase: configured and reachable.
+- Real NLP model: `cardiffnlp/twitter-roberta-base-sentiment-latest` successfully loaded and produced a real inference result.
+- SerpApi: configured; live mode enabled only for a controlled probe.
+- Groq: configured.
+- Estimator: **11 planned/new calls**, **250 remaining**, **20 reserve**, `can_run=true`.
+- Live analysis `caf41ddd-a68a-4190-b7ad-732eb9781395`: **failed at planning with `DetachedInstanceError`; 0 SerpApi calls used**.
+- Current blocker: background pipeline uses a detached SQLAlchemy `Analysis` ORM instance.
+- Current task: full read-only codebase audit and `FIXES_REQUIRED.md`, followed by targeted fixes and regression testing.
+- Golden/demo mode remains the safe fallback while live validation is blocked.
