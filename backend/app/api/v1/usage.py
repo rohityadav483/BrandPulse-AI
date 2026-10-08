@@ -23,6 +23,20 @@ router = APIRouter(tags=["usage"])
     responses=error_responses(501),
 )
 def get_usage(settings: SettingsDep) -> UsageResponse:
+    if settings.demo_mode and not (settings.database_url or settings.database_url_direct):
+        # DEMO_MODE without a database: nothing was spent; no live calls are possible.
+        return UsageResponse(
+            month=datetime.now(UTC).strftime("%Y-%m"),
+            serpapi=UsageSerpapi(
+                limit=settings.serp_monthly_limit,
+                used=0,
+                remaining=settings.serp_monthly_limit,
+                reserve=settings.serp_monthly_reserve,
+                live_enabled=False,
+            ),
+            groq=UsageGroq(configured=False, calls_today=0, model=None),
+            analyses_today=AnalysesToday(used=0, limit=settings.max_analyses_per_day),
+        )
     if not (settings.database_url or settings.database_url_direct):
         from app.api.v1.errors import ApiError
 

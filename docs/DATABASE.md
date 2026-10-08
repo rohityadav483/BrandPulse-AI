@@ -487,8 +487,8 @@ Rules:
 
 ## 10. Seed and golden data
 
-- `scripts/seed_demo.py` (built in Phase 6) loads `contracts/golden/samsung_battery.json` (synthetic) into the tables with fixed IDs, so the `demo` analysis works from a real database.
-- `scripts/export_demo_bundle.py` (Phase 10) exports a real analysis, its investigation and the related `serp_cache` rows to `contracts/demo/samsung_s25_ultra.json`. The bundle can be re-imported after a database reset or served directly in `DEMO_MODE`, with no database, model or network.
+- `backend/scripts/seed_demo.py` (built in Phase 6) loads `contracts/golden/samsung_battery.json` (synthetic) into the tables with fixed IDs, so the `demo` analysis works from a real database.
+- `backend/scripts/export_demo_bundle.py` (Phase 10) exports a real analysis, its investigation and the related `serp_cache` rows to `contracts/demo/samsung_s25_ultra.json`. The bundle can be re-imported after a database reset or served directly in `DEMO_MODE`, with no database, model or network.
 - The golden fixture must be consistent with this schema: same field names, enums and ranges as the API DTOs in `API.md`.
 
 ---

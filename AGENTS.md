@@ -41,7 +41,7 @@ Stack (fixed): Next.js + TypeScript + Tailwind + shadcn/ui · FastAPI · Supabas
 - Investigation confidence is a deterministic formula. **The LLM never invents the number.**
 - LLM may cite evidence IDs only. Backend validates IDs and drops uncited claims.
 - Wording: "associated with", never "caused by".
-- NLP is local BERT + rules. Groq only for reasoning: query generation, stance tagging, synthesis, recommendations, optional competitor suggestion.
+- NLP is local BERT + rules. Groq is used for synthesis/reasoning where configured. The current investigation MVP intentionally uses deterministic query templates, existing cached evidence, and deterministic stance/relevance scoring so investigations remain cache-safe and do not spend SerpApi credits. Any future live-evidence mode must add validated Groq stance tagging before enabling it.
 - SerpApi cache keys use absolute window dates from a pinned `as_of_date`.
 - Demo scenario: Samsung Galaxy S25 Ultra, competitors Apple + OnePlus, `as_of_date` 2026-08-10, `period_days` 30.
 - English only. Max 2 competitors per analysis.

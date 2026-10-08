@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -97,3 +99,32 @@ def test_get_settings_is_cached():
     get_settings.cache_clear()
     assert get_settings() is get_settings()
     get_settings.cache_clear()
+
+
+def _example_env() -> dict[str, str]:
+    path = Path(__file__).resolve().parents[2] / ".env.example"
+    pairs = {}
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            key, _, value = line.partition("=")
+            pairs[key.strip()] = value.strip()
+    return pairs
+
+
+def test_env_example_lists_every_setting():
+    assert set(_example_env()) == {name.upper() for name in Settings.model_fields}
+
+
+def test_env_example_loads_as_valid_settings_without_enabling_anything_live():
+    s = Settings(_env_file=Path(__file__).resolve().parents[2] / ".env.example")
+    assert s.allow_live_serpapi is False and s.demo_mode is False
+    assert not s.serpapi_configured and not s.groq_configured  # keys are left blank
+    assert s.database_url_direct.startswith("postgresql://")  # Alembic gets a URL to edit
+    assert s.llm_max_concurrency == 1 and s.llm_max_calls_per_investigation == 8
+
+
+def test_env_example_is_not_a_copy_of_the_readme():
+    backend = Path(__file__).resolve().parents[2]
+    readme = backend.parent / "README.md"
+    assert (backend / ".env.example").read_text() != readme.read_text()

@@ -27,6 +27,13 @@ export type {AnalysisStatusResponse, EstimateAnalysisResponse, ListMentionsRespo
 
 export const useGolden = process.env.NEXT_PUBLIC_USE_GOLDEN === 'true';
 
+const serverApiOrigin = process.env.API_ORIGIN || 'http://127.0.0.1:8000';
+
+function apiUrl(path: string): string {
+  if (typeof window !== 'undefined') return `/api/v1${path}`;
+  return `${serverApiOrigin.replace(/\/$/, '')}/api/v1${path}`;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -39,7 +46,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
+  const response = await fetch(apiUrl(path), {
     ...init,
     headers: {'Content-Type': 'application/json', ...(init?.headers ?? {})},
     cache: 'no-store',
@@ -72,6 +79,28 @@ export async function getSignal(id: string): Promise<SignalDetail> {
 export async function getInvestigation(id: string): Promise<InvestigationResponse> {
   if (useGolden || id === 'demo-investigation') return goldenFixture.investigation;
   return request<InvestigationResponse>(`/investigations/${id}`);
+}
+
+export async function investigateSignal(
+  id: string,
+  accessCode?: string,
+  force = false,
+): Promise<Schemas['InvestigateSignalResponse']> {
+  if (useGolden || id === 'demo-signal-battery') {
+    return {
+      investigation_id: 'demo-investigation',
+      status: 'completed',
+      reused: true,
+      poll_url: '/api/v1/investigations/demo-investigation',
+    };
+  }
+  return request<Schemas['InvestigateSignalResponse']>(
+    `/signals/${id}/investigate?force=${force ? 'true' : 'false'}`,
+    {
+      method: 'POST',
+      headers: accessCode ? {'X-Access-Code': accessCode} : undefined,
+    },
+  );
 }
 
 export async function listInvestigationEvidence(id: string): Promise<ListEvidenceResponse> {

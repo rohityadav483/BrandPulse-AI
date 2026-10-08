@@ -37,7 +37,7 @@ class LLMCall(Base):
     )
 
     investigation_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("investigations.id", ondelete="SET NULL"),
+        ForeignKey("investigations.id", ondelete="SET NULL", name="fk_llm_calls_investigation"),
     )
 
     task: Mapped[str] = mapped_column(Text, nullable=False)

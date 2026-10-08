@@ -9,6 +9,7 @@ import {StepList} from '@/components/investigation/StepList';
 import {CompetitorTable} from '@/components/investigation/CompetitorTable';
 import {RecommendationList} from '@/components/investigation/RecommendationList';
 import {label, pct, score} from '@/lib/format';
+import {InvestigationRunner} from '@/components/investigation/InvestigationRunner';
 
 const scopeTone = {
   brand_specific: 'bg-red-50 text-red-700',
@@ -25,8 +26,9 @@ export default async function Investigate({params}: {params: {id: string}}) {
     return (
       <main className="mx-auto max-w-3xl px-5 py-12">
         <EmptyState title="No investigation yet">
-          This signal has not been investigated. Live investigations arrive in a later phase.
+          This signal has not been investigated yet.
         </EmptyState>
+        <InvestigationRunner signalId={params.id} />
       </main>
     );
   }

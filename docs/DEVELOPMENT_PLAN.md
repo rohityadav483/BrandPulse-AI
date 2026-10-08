@@ -144,8 +144,8 @@ Tasks:
 - `client.py` (timeout, retries, error mapping), `cache.py` (key = hash of engine + params with absolute dates; TTL 30 days; shorter TTL for empty results), `budget.py`, `usage.py` (monthly counter, reserve guard, `ALLOW_LIVE_SERPAPI` switch), `estimator.py`.
 - `query_planner.py` implementing the lean plan in `ARCHITECTURE.md` §6 (≈ 11 calls), windows from `as_of_date`.
 - Parsers for Google web, Google News, Google Forums, YouTube search, Google Trends. Shopping and YouTube video details only if time and credits allow.
-- `scripts/record_serp_fixtures.py`: record, sanitize (strip API key), commit under `tests/fixtures/serpapi/`.
-- `scripts/probe_demo_signal.py`: cheap check that the demo scenario shows a spike (see §5).
+- `backend/scripts/record_serp_fixtures.py`: record, sanitize (strip API key), commit under `tests/fixtures/serpapi/`.
+- `backend/scripts/probe_demo_signal.py`: cheap check that the demo scenario shows a spike (see §5).
 
 Verify against real responses (spend credits here deliberately):
 - Results per call, pagination cost, whether a `num` or page-size parameter works.
@@ -192,7 +192,7 @@ Tasks:
 - `clauses.py`: sentence split, then contrast-word split.
 - `taxonomy.py`: aspect lexicons for a consumer-electronics preset (battery, camera, performance, pricing, design, software, customer support, display, charging) plus a generic fallback preset. Category chosen by a form dropdown, no LLM.
 - `aspects.py`, `keywords.py`, `topics.py`.
-- Label 40–60 snippets by hand (overall sentiment plus aspect-level where present), mixing real snippets from Phase 2 fixtures. `scripts/run_eval.py`.
+- Label 40–60 snippets by hand (overall sentiment plus aspect-level where present), mixing real snippets from Phase 2 fixtures. `backend/scripts/run_eval.py`.
 - Evaluate the model shortlist (see `ARCHITECTURE.md` §5.1); check size, license and availability on Hugging Face at this point. Choose one.
 - Analyzer reuse by `(content_hash, analyzer_version)`.
 - Measure memory and cold start on the local machine (no Docker, no hosting).
@@ -235,7 +235,7 @@ Tasks:
 - `pipeline/analysis_pipeline.py`: stages, progress, per-stage transactions, partial-failure policy, warnings.
 - `pipeline/jobs.py`: `BackgroundTasks` runner, concurrency limit, stale-job reaper.
 - Migration: `llm_calls` (`investigation_id` plain column until Phase 7). Minimal `llm/` provider + limiter for competitor suggestion; Phase 7 completes it.
-- `DEMO_MODE`: alias IDs (`demo`, `demo-signal-battery`, `demo-investigation`) served from the golden fixture; `scripts/seed_demo.py`.
+- `DEMO_MODE`: alias IDs (`demo`, `demo-signal-battery`, `demo-investigation`) served from the golden fixture; `backend/scripts/seed_demo.py`.
 - API: `POST /analyses`, `POST /analyses/estimate`, `GET /analyses`, `GET /analyses/{id}`, `GET /analyses/{id}/dashboard`, `GET /analyses/{id}/mentions`, `GET /signals/{id}`, `GET /usage`, `GET /health`.
 - Access-code check for live runs; daily cap; per-IP rate limit; quota errors.
 - Competitors: maximum 2; current-window snapshots; if none given, suggest up to 2 via Groq (logged in `llm_calls`).

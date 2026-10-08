@@ -777,6 +777,16 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -877,6 +887,16 @@
           },
           "422": {
             "description": "validation_error: field validation failed (`details.fields`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "not_implemented: route is a contract stub until its phase lands.",
             "content": {
               "application/json": {
                 "schema": {

@@ -27,8 +27,8 @@ cp .env.example .env        # PowerShell: Copy-Item .env.example .env
 pytest                      # migration tests skip without TEST_DATABASE_URL
 ruff check .
 ruff format --check .
-python scripts/export_openapi.py --check
-python scripts/validate_golden.py
+python backend/scripts/export_openapi.py --check
+python backend/scripts/validate_golden.py
 alembic upgrade head       # needs DATABASE_URL_DIRECT in .env
 uvicorn app.main:app --reload
 ```

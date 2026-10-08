@@ -229,7 +229,7 @@ Phase 10 demo/rehearsal tooling is implemented. The no-network bundle fallback i
 - Reuse: `(content_hash, analyzer_version)`; copies model-derived results and the original `analyzed_at`, takes the caller's `matched_terms`, only from sources that are about their brand, earliest source wins deterministically.
 - Dependencies: `pyproject.toml` gets an **optional extra** `nlp = [torch>=2.2, transformers>=4.40]`; core and dev dependencies unchanged. Nothing imports torch/transformers at import time (guarded by a subprocess test and an AST test).
 - Tests (157 net new, all passing): `unit/test_nlp_hf_sentiment.py` (45), `unit/test_nlp_model_loader.py` (15, fake torch/transformers and import guards), `unit/test_nlp_item_analysis.py` (45: item analysis, version, schemas), `integration/test_content_analysis_repository.py` (23, PostgreSQL: round trip, idempotency, atomic rollback, filters, cascade, reuse flow with a counting analyzer: zero inference on re-run and on identical texts in another analysis, new texts only, version/category/model change = no reuse, relevance per brand, non-relevant sources never reused, classification of targets), `0005` additions in `test_migrations.py` (123 -> 152 tests: columns, indexes, PKs, defaults, every check, FKs/cascade, downgrade). Updated: head `0005`, table sets, downgrade tests, offline-SQL assertion. `tests/evals/test_real_sentiment_model.py` (3 tests, marker `model`, skipped without torch).
-- NOT done on purpose: signals/scoring (Phase 5), pipeline wiring (Phase 6; no stage was added, nothing calls the new code outside tests), Groq, SerpApi, frontend, API/OpenAPI changes, `keywords.py`, `topics.py`, labeled eval set, `scripts/run_eval.py`, real-model run, model choice.
+- NOT done on purpose: signals/scoring (Phase 5), pipeline wiring (Phase 6; no stage was added, nothing calls the new code outside tests), Groq, SerpApi, frontend, API/OpenAPI changes, `keywords.py`, `topics.py`, labeled eval set, `backend/scripts/run_eval.py`, real-model run, model choice.
 
 ### Phase 4.3 work completed (2026-10-07)
 - Scope: **Phase 4.3 only** (NLP evaluation). Phase 5, pipeline wiring, SerpApi, Groq, frontend and migrations were not touched.
@@ -237,12 +237,12 @@ Phase 10 demo/rehearsal tooling is implemented. The no-network bundle fallback i
 - `services/nlp/topics.py`: `derive_topics(aspect_names, keywords, covered_terms, max_keyword_topics=3)` = aspect names (text order, no duplicates) + up to 3 keywords not already covered by an aspect name or a matched aspect term. `TOPIC_RULES_VERSION = "topics-1"`.
 - `item_analysis.analyze_items` fills `keywords`/`topics` for relevant items (irrelevant items get none). `analyzer_version` is now `model|lex-1|clauses-1|relevance-1|keywords-1|topics-1|category[|config tag]`. This changes `analyzer_version` strings, so a row stored by 4.2 code would not be reused (none exist outside tests). `docs/DATABASE.md` 5.6 implementation notes (not the planned schema) were corrected for this.
 - `services/nlp/evaluation.py`: `load_dataset` (validates labels, ids, aspect names), `run_analyzer` (one `analyze` call, same `title + snippet` text and clause path as production), `classification_report` (accuracy, Macro-F1 as the unweighted mean over the three labels, per-class precision/recall/F1/support, confusion matrix), `score` (also aspect detection recall and aspect sentiment accuracy on annotated-and-detected aspects), `relabel`/`sweep` (re-apply `neutral_margin` to stored probabilities with the same `to_result` as `HFSentimentAnalyzer`; a test proves equality with an analyzer built with that margin on 200 random probability rows and 5 margins).
-- `scripts/run_eval.py`: `--analyzer stub|hf`, `--model-id`, `--cache-dir`, `--local-files-only`, `--neutral-margin`, `--sweep`/`--margins`, `--show-errors`, `--json-out`, `--enforce` (plan thresholds accuracy >= 0.75, Macro-F1 >= 0.70). For `hf` it also reports cold start, texts/second and peak RSS (not on Windows). Exit 2 with `REAL MODEL NOT AVAILABLE` and no metrics when torch/transformers/model files are missing.
+- `backend/scripts/run_eval.py`: `--analyzer stub|hf`, `--model-id`, `--cache-dir`, `--local-files-only`, `--neutral-margin`, `--sweep`/`--margins`, `--show-errors`, `--json-out`, `--enforce` (plan thresholds accuracy >= 0.75, Macro-F1 >= 0.70). For `hf` it also reports cold start, texts/second and peak RSS (not on Windows). Exit 2 with `REAL MODEL NOT AVAILABLE` and no metrics when torch/transformers/model files are missing.
 - Dataset `tests/fixtures/nlp/sentiment_eval_v1.json`: 58 items, 18 positive / 18 negative / 22 neutral; 50 items carry aspect labels (75 aspect labels). 5 items are taken from the **synthetic** Phase 2 SerpApi fixtures (a test checks they match those files), 53 are hand-written. **Single annotator (the implementing agent); no second rater; no real scraped snippets** (live SerpApi is not allowed). Mixed items are labeled by dominant tone, else neutral. The set was written before any model result existed and was not changed after seeing results.
 - Bug fixed: a half-installed torch (native library missing) raises `OSError` on `import torch`; `load_sequence_classifier` caught only `ImportError`, so `--analyzer hf` crashed with a traceback. It now raises `ModelUnavailableError` (test `test_broken_torch_install_gives_a_clear_error`, fails without the fix).
 - Tests: see section 18. Docs: `services/nlp/README.md` (modules, evaluation how-to), `backend/README.md`, `docs/DATABASE.md` 5.6 notes, this file.
 
-### Phase 4.3 evaluation results (exact, from `python scripts/run_eval.py`)
+### Phase 4.3 evaluation results (exact, from `python backend/scripts/run_eval.py`)
 **Real model `cardiffnlp/twitter-roberta-base-sentiment-latest`: NOT RUN. No accuracy, Macro-F1, per-class metric, confusion matrix, margin sweep, throughput, cold start or memory exists for it. `neutral_margin` is unchanged at 0.15 (untuned).**
 
 The only numbers that exist are for the deterministic keyword **stub** (`stub-lexicon-v1`, a test double). They say nothing about the real model, must not be used to choose a model or a margin, and are inflated because the hand-written snippets use ordinary sentiment words that the stub's word list also contains:
@@ -262,12 +262,12 @@ aspect sentiment (stub, annotated and detected): n=73 accuracy=0.8219 macro_f1=0
 ```
 Stub errors are all "negative/positive predicted neutral" (no stub word, or a contrast the clause splitter does not split). The two lexicon misses are real recall findings, independent of the model: `s13` misses `audio` because the audio lexicon has no bare `sound` (only `sound quality`), and `s30` misses `customer_support` because bare `support` is deliberately not a lexicon term (only `customer support`, `support team`, etc.). The lexicon was not changed.
 
-To get the real numbers on a machine with torch and Hugging Face access: `cd backend && pip install -e ".[nlp]" && python scripts/run_eval.py --analyzer hf --sweep --show-errors --json-out eval_hf.json`, then `pytest -m model tests/evals/test_real_sentiment_model.py`. Decide `neutral_margin` from the sweep table only if the accuracy/Macro-F1 differences are larger than the noise of a 58-item set (one item = 1.7 accuracy points); otherwise keep 0.15.
+To get the real numbers on a machine with torch and Hugging Face access: `cd backend && pip install -e ".[nlp]" && python backend/scripts/run_eval.py --analyzer hf --sweep --show-errors --json-out eval_hf.json`, then `pytest -m model tests/evals/test_real_sentiment_model.py`. Decide `neutral_margin` from the sweep table only if the accuracy/Macro-F1 differences are larger than the noise of a 58-item set (one item = 1.7 accuracy points); otherwise keep 0.15.
 
 ### Phase 2 work completed (2026-10-07)
 - Tables `serp_cache`, `serp_usage` (migration `0002`, models, DB-backed repositories).
 - `services/serpapi/`: `client` (stdlib transport, retries, error mapping, kill switch), `cache` (keys, TTL, empty TTL, pinning, purge, sanitising), `usage` (monthly counter, reserve guard, account label), `budget` (per-run cap), `estimator`, `query_planner` (lean 11-call plan), `fetcher` (cache -> guards -> client orchestration), `parsers/` (web, news, forums, YouTube, Trends), `testing` (in-memory fakes, scripted transport, `block_network`), README.
-- Synthetic fixtures (6) in `tests/fixtures/serpapi/`; `scripts/record_serp_fixtures.py` (plan-only unless `--live --confirm-credits N`).
+- Synthetic fixtures (6) in `tests/fixtures/serpapi/`; `backend/scripts/record_serp_fixtures.py` (plan-only unless `--live --confirm-credits N`).
 - Docs: module README, `docs/SERPAPI_FINDINGS.md` (assumptions to verify), backend README, this file.
 - Phase 0/1 tests changed only where the schema head moved: table set and `0001` -> `0002` assertions.
 
@@ -456,7 +456,7 @@ Credit plan (250): P2 ≤ 45 · P6 ≤ 40 · P7–8 ≤ 30 · Samsung pre-warm �
 Golden formula anchors are verified: growth `3.3×`, signal score `0.79`, health `73`, investigation confidence `86`, camera net `70`, battery net `-48`, Apple battery net `20`.
 ## 13. NLP Status
 
-**Implemented (not wired):** Phase 4.1: rule-based relevance, clause splitting, aspect lexicons, `SentimentAnalyzer` protocol and stub. Phase 4.2: `HFSentimentAnalyzer` + lazy `model_loader` (CPU torch, margin rule to neutral), `analyzer_version`, `item_analysis`, persistence (`content_analysis`, `item_aspects`, migration `0005`, repositories), reuse by `(content_hash, analyzer_version)`. Phase 4.3: `keywords`, `topics`, `evaluation`, labeled set, `scripts/run_eval.py`. **Still open:** model choice, real run, `neutral_margin` tuning, throughput/memory, pipeline wiring. Decided direction (do not change): local BERT-family sentiment model (start with 3-class RoBERTa `cardiffnlp/twitter-roberta-base-sentiment-latest`, final choice by eval), CPU torch, margin rule -> neutral, deterministic stub for tests, clause-level sentiment, BERTopic/FAISS/embeddings deferred.
+**Implemented (not wired):** Phase 4.1: rule-based relevance, clause splitting, aspect lexicons, `SentimentAnalyzer` protocol and stub. Phase 4.2: `HFSentimentAnalyzer` + lazy `model_loader` (CPU torch, margin rule to neutral), `analyzer_version`, `item_analysis`, persistence (`content_analysis`, `item_aspects`, migration `0005`, repositories), reuse by `(content_hash, analyzer_version)`. Phase 4.3: `keywords`, `topics`, `evaluation`, labeled set, `backend/scripts/run_eval.py`. **Still open:** model choice, real run, `neutral_margin` tuning, throughput/memory, pipeline wiring. Decided direction (do not change): local BERT-family sentiment model (start with 3-class RoBERTa `cardiffnlp/twitter-roberta-base-sentiment-latest`, final choice by eval), CPU torch, margin rule -> neutral, deterministic stub for tests, clause-level sentiment, BERTopic/FAISS/embeddings deferred.
 
 Metrics: eval dataset size **58** (target 40-60; synthetic/hand-written, single annotator) · real-model accuracy UNKNOWN (target >= 75%) · real-model macro-F1 UNKNOWN (target >= 0.70) · aspect detection recall (lexicon, model-independent) **0.9733 (73/75)** · memory UNKNOWN · cold start UNKNOWN · throughput UNKNOWN. Stub-only numbers are in section 4 ("Phase 4.3 evaluation results") and are not model metrics. Selected model: not chosen (default id is only a starting point). **The real model has never been loaded or run**; `neutral_margin` 0.15 is a guess and was not tuned. To try it: `pip install -e ".[nlp]"` (CPU torch recommended), then `cd backend && pytest -m model tests/evals/test_real_sentiment_model.py`; the first run downloads the model from Hugging Face.
 
@@ -720,7 +720,7 @@ Decisions made in Phase 2 (2026-10-07, review them):
 - "No results" responses count as 1 credit and cache for 24 h; failed calls log 0 credits.
 - Trends parser returns `TrendSeries`, so "every parser returns RawItem" holds for the four content engines only.
 - Competitor queries use the brand name only; plan order is priority order (competitors are dropped first when the cap is below 11).
-- `scripts/probe_demo_signal.py` and `scripts/warm_demo_cache.py` NOT implemented (need a live session).
+- `backend/scripts/probe_demo_signal.py` and `backend/scripts/warm_demo_cache.py` implemented; both are safe local utilities, with cache warming a no-op when the verified bundle contains no cache entries.
 
 Decisions made in Phase 3.1 (2026-10-07, review them):
 
@@ -774,12 +774,12 @@ Decisions made in Phase 4.3 (2026-10-07, review them):
 ## 24. Files Changed in This Implementation Pass
 
 ```text
-Backend: scoring_config.py, scripts/validate_golden.py, tests/unit/test_golden_fixture.py
+Backend: scoring_config.py, backend/scripts/validate_golden.py, tests/unit/test_golden_fixture.py
 Contracts: contracts/golden/samsung_battery.json
 Frontend: Next.js config, TypeScript/Tailwind config, App Router pages, UI primitives, typed client, generated API types, golden fixture adapter, Vitest smoke test, frontend README
 Documentation: README.md, AGENTS.md, docs/SCORING.md, docs/DESIGN_SYSTEM.md, docs/PHASES.md, docs/SERPAPI_FINDINGS.md, docs/PROGRESS.md
 CI: .github/workflows/ci.yml
-Scripts: scripts/check_type_contract.py
+Scripts: backend/scripts/check_type_contract.py
 Environment: frontend/.env.example, frontend/.eslintrc.json, frontend/package.json
 ```
 ### Phase 1 pass (frontend only)
@@ -796,7 +796,7 @@ Incident: lib/golden/ was deleted by a cleanup command mid-pass; fixture.ts rest
 ### Phase 2 pass (SerpApi layer)
 
 ```text
-New: backend/app/schemas/serp.py, app/services/serpapi/{client,cache,sanitize,usage,budget,estimator,query_planner,fetcher,testing}.py, parsers/{common,google_web,google_news,google_forums,youtube,google_trends}.py, README.md; app/db/models/serp.py, app/db/repositories/{serp_cache,serp_usage}.py; alembic/versions/20261006_0002_serp_cache_and_usage.py; scripts/record_serp_fixtures.py
+New: backend/app/schemas/serp.py, app/services/serpapi/{client,cache,sanitize,usage,budget,estimator,query_planner,fetcher,testing}.py, parsers/{common,google_web,google_news,google_forums,youtube,google_trends}.py, README.md; app/db/models/serp.py, app/db/repositories/{serp_cache,serp_usage}.py; alembic/versions/20261006_0002_serp_cache_and_usage.py; backend/scripts/record_serp_fixtures.py
 Fixtures: tests/fixtures/serpapi/*.json (6, synthetic)
 Tests: unit/test_serp_{cache,budget_usage,client,planner,estimator,fetcher}.py, unit/test_record_serp_fixtures.py, parsers/test_serp_parsers.py, integration/test_serp_repositories.py
 Modified: app/db/models/__init__.py, tests/unit/test_db_models.py and tests/integration/test_migrations.py (table set, head 0002, new serp tests), backend/README.md, docs/SERPAPI_FINDINGS.md, docs/PROGRESS.md

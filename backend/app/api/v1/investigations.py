@@ -48,7 +48,7 @@ def _dto(inv):
     "/{id}",
     response_model=InvestigationResponse,
     operation_id="getInvestigation",
-    responses=error_responses(404, 422),
+    responses=error_responses(404, 422, 501),
 )
 def get_investigation(id: Annotated[str, Path()], settings: SettingsDep):
     if settings.demo_mode and is_demo_id(id):
@@ -57,6 +57,8 @@ def get_investigation(id: Annotated[str, Path()], settings: SettingsDep):
         iid = UUID(id)
     except ValueError:
         raise ApiError(404, "not_found", "Unknown investigation ID.")
+    if not (settings.database_url or settings.database_url_direct):
+        raise ApiError(501, "not_implemented", "Database-backed investigation endpoints require DATABASE_URL.")
     with Session(
         get_engine(settings.database_url or settings.database_url_direct)
     ) as s:
@@ -70,7 +72,7 @@ def get_investigation(id: Annotated[str, Path()], settings: SettingsDep):
     "/{id}/evidence",
     response_model=ListEvidenceResponse,
     operation_id="listInvestigationEvidence",
-    responses=error_responses(404, 422),
+    responses=error_responses(404, 422, 501),
 )
 def list_investigation_evidence(
     id: Annotated[str, Path()],
@@ -86,6 +88,8 @@ def list_investigation_evidence(
         iid = UUID(id)
     except ValueError:
         raise ApiError(404, "not_found", "Unknown investigation ID.")
+    if not (settings.database_url or settings.database_url_direct):
+        raise ApiError(501, "not_implemented", "Database-backed investigation endpoints require DATABASE_URL.")
     with Session(
         get_engine(settings.database_url or settings.database_url_direct)
     ) as s:

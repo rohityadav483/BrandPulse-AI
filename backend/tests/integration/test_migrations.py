@@ -30,6 +30,19 @@ pytestmark = pytest.mark.skipif(
 
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
+HEAD = "0010"
+# Tables per revision, cumulative (0001 .. 0010). Keep in step with alembic/versions.
+TABLES_0001 = {"alembic_version", "brands", "analyses", "analysis_brands"}
+TABLES_0002 = TABLES_0001 | {"serp_cache", "serp_usage"}
+TABLES_0003 = TABLES_0002 | {"raw_items"}
+TABLES_0004 = TABLES_0003 | {"content_items"}
+TABLES_0005 = TABLES_0004 | {"content_analysis", "item_aspects"}
+TABLES_0006 = TABLES_0005 | {"trend_points", "brand_snapshots", "signals"}
+TABLES_0007 = TABLES_0006 | {"llm_calls"}
+TABLES_0008 = TABLES_0007 | {"investigations", "evidence"}
+TABLES_0009 = TABLES_0008 | {"recommendations"}
+TABLES_HEAD = TABLES_0009  # 0010 only enables row-level security
+
 # Independent copy of docs/DATABASE.md section 3 (so the migration is checked against the doc).
 EXPECTED_ENUMS = {
     "analysis_status": ["queued", "running", "completed", "partial", "failed"],
@@ -143,10 +156,10 @@ def _new_analysis(conn, brand_id, **overrides) -> uuid.UUID:
 
 def test_upgrade_head_on_blank_database(migrated):
     with migrated.connect() as c:
-        assert _rows(c, "SELECT version_num FROM alembic_version") == [("0006",)]
+        assert _rows(c, "SELECT version_num FROM alembic_version") == [(HEAD,)]
 
 
-def test_only_phase_0_to_4_2_tables_exist(migrated):
+def test_all_current_tables_exist(migrated):
     with migrated.connect() as c:
         tables = {
             r[0]
@@ -154,21 +167,20 @@ def test_only_phase_0_to_4_2_tables_exist(migrated):
                 c, "SELECT tablename FROM pg_tables WHERE schemaname='public'"
             )
         }
-    assert tables == {
-        "alembic_version",
-        "brands",
-        "analyses",
-        "analysis_brands",
-        "serp_cache",
-        "serp_usage",
-        "raw_items",
-        "content_items",
-        "content_analysis",
-        "item_aspects",
-        "trend_points",
-        "brand_snapshots",
-        "signals",
-    }
+    assert tables == TABLES_HEAD
+
+
+def test_row_level_security_is_enabled_on_every_application_table(migrated):
+    with migrated.connect() as c:
+        rows = _rows(
+            c,
+            "SELECT c.relname, c.relrowsecurity FROM pg_class c "
+            "JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = 'public' AND c.relkind = 'r'",
+        )
+    secured = {name: flag for name, flag in rows}
+    assert set(secured) == TABLES_HEAD
+    assert {n for n, flag in secured.items() if not flag} == {"alembic_version"}
 
 
 def test_all_enums_exist_with_exact_ordered_values(migrated):
@@ -187,6 +199,7 @@ def test_all_enums_exist_with_exact_ordered_values(migrated):
 
 def test_models_match_migrated_schema(migrated):
     with migrated.connect() as c:
+        # No object filter: every table, index and FK in the database must be modeled.
         ctx = MigrationContext.configure(c, opts={"compare_type": True})
         assert compare_metadata(ctx, Base.metadata) == []
 
@@ -411,7 +424,7 @@ def test_downgrade_to_base_then_upgrade_again():
         assert enums == []
         command.upgrade(cfg, "head")
         with engine.connect() as c:
-            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0006",)]
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [(HEAD,)]
         engine.dispose()
 
 
@@ -496,30 +509,52 @@ def _tables(engine):
         }
 
 
-def test_downgrade_to_0004_removes_only_the_nlp_tables():
+def test_downgrade_one_step_from_head_returns_to_0009_and_back():
+    """0010 only toggles RLS: one step down keeps every table and drops no data model."""
     with blank_database() as url:
         cfg = _cfg(url)
         command.upgrade(cfg, "head")
         command.downgrade(cfg, "-1")
         engine = create_engine(url)
         with engine.connect() as c:
-            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0004",)]
-            enums = _rows(c, "SELECT count(*) FROM pg_type WHERE typtype = 'e'")
-        assert _tables(engine) == {
-            "alembic_version",
-            "brands",
-            "analyses",
-            "analysis_brands",
-            "serp_cache",
-            "serp_usage",
-            "raw_items",
-            "content_items",
-        }
-        assert enums == [
-            (17,)
-        ]  # the NLP tables never owned an enum (sentiment is from 0001)
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [("0009",)]
+            secured = _rows(
+                c,
+                "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity",
+            )
+        assert _tables(engine) == TABLES_0009
+        assert secured == [(0,)]
         command.upgrade(cfg, "head")
-        assert {"content_analysis", "item_aspects"} <= _tables(engine)
+        with engine.connect() as c:
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [(HEAD,)]
+        engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("revision", "tables"),
+    [
+        ("0008", TABLES_0008),
+        ("0007", TABLES_0007),
+        ("0006", TABLES_0006),
+        ("0005", TABLES_0005),
+        ("0004", TABLES_0004),
+    ],
+)
+def test_downgrade_to_revision_removes_only_later_tables(revision, tables):
+    with blank_database() as url:
+        cfg = _cfg(url)
+        command.upgrade(cfg, "head")
+        command.downgrade(cfg, revision)
+        engine = create_engine(url)
+        with engine.connect() as c:
+            assert _rows(c, "SELECT version_num FROM alembic_version") == [(revision,)]
+            enums = _rows(c, "SELECT count(*) FROM pg_type WHERE typtype = 'e'")
+        assert _tables(engine) == tables
+        # Every enum (llm_call_status, investigation_status, ...) is created by 0001.
+        assert enums == [(len(EXPECTED_ENUMS),)]
+        command.upgrade(cfg, "head")
+        assert _tables(engine) == TABLES_HEAD
         engine.dispose()
 
 

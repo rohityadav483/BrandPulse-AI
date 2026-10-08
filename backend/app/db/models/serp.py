@@ -45,8 +45,7 @@ class SerpCache(Base):
 class SerpUsage(Base):
     """One row per SerpApi request attempt; the monthly counter derives from it.
 
-    docs/DATABASE.md section 5.15. `investigation_id` is a plain column until the Phase 7
-    migration adds its foreign key. `analysis_id` is SET NULL on delete (not CASCADE): the credit
+    docs/DATABASE.md section 5.15. `investigation_id` references investigations (migration 0008). `analysis_id` is SET NULL on delete (not CASCADE): the credit
     was spent at SerpApi whether or not the analysis still exists, so the counter must not drop.
     """
 
@@ -69,7 +68,10 @@ class SerpUsage(Base):
     analysis_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("analyses.id", ondelete="SET NULL")
     )
-    investigation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    investigation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("investigations.id", ondelete="SET NULL", name="fk_serp_usage_investigation"),
+    )
     purpose: Mapped[str] = mapped_column(Text, nullable=False)
     account_label: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

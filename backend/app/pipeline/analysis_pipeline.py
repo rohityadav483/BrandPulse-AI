@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -40,29 +41,61 @@ from app.services.serpapi.query_planner import build_plan
 from app.services.serpapi.usage import MonthlyQuota
 from app.services.signals.detector import detect_negative_spike
 from app.services.signals.metrics import MetricItem
+from app.services.signals.trends import interest_change_pct, trend_corroborated
 
 logger = logging.getLogger(__name__)
 
 
-def _window_set(analysis: Analysis) -> WindowSet:
-    return WindowSet(
-        as_of_date=analysis.as_of_date,
-        period_days=analysis.period_days,
-        current_start=analysis.current_start,
-        current_end=analysis.current_end,
-        baseline_start=analysis.baseline_start,
-        baseline_end=analysis.baseline_end,
+@dataclass(frozen=True)
+class _RunContext:
+    """Plain scalars copied out of the Analysis row inside the session.
+
+    ORM instances expire on commit and detach when their session closes, so nothing read after
+    the first session may touch an `Analysis` object.
+    """
+
+    analysis_id: UUID
+    product: str | None
+    category: str
+    serp_calls_budget: int
+    windows: WindowSet
+
+
+@dataclass(frozen=True)
+class _BrandCtx:
+    """A brand and its role in this analysis, as plain values (no ORM instances)."""
+
+    id: UUID
+    name: str
+    role: str
+
+
+def _load_context(analysis: Analysis) -> _RunContext:
+    """Call while `analysis` is attached and loaded (inside its session)."""
+    return _RunContext(
+        analysis_id=analysis.id,
+        product=analysis.product,
+        category=analysis.category or "consumer_electronics",
+        serp_calls_budget=analysis.serp_calls_budget,
+        windows=WindowSet(
+            as_of_date=analysis.as_of_date,
+            period_days=analysis.period_days,
+            current_start=analysis.current_start,
+            current_end=analysis.current_end,
+            baseline_start=analysis.baseline_start,
+            baseline_end=analysis.baseline_end,
+        ),
     )
 
 
-def _brands(session: Session, analysis_id: UUID) -> list[tuple[Brand, AnalysisBrand]]:
+def _brands(session: Session, analysis_id: UUID) -> list[_BrandCtx]:
     rows = session.execute(
-        select(Brand, AnalysisBrand)
+        select(Brand.id, Brand.name, AnalysisBrand.role)
         .join(AnalysisBrand, AnalysisBrand.brand_id == Brand.id)
         .where(AnalysisBrand.analysis_id == analysis_id)
         .order_by(AnalysisBrand.role, Brand.name)
     ).all()
-    return list(rows)
+    return [_BrandCtx(id=r.id, name=r.name, role=r.role) for r in rows]
 
 
 def _make_fetcher(settings: Settings, engine):
@@ -83,23 +116,28 @@ def _make_fetcher(settings: Settings, engine):
     return SerpFetcher(cache=cache, quota=quota, client=client), cache, quota
 
 
-def _persist_trends(engine, analysis_id: UUID, brand_id: UUID, parsed) -> None:
+def _norm_name(name: str) -> str:
+    return " ".join(name.split()).casefold()
+
+
+def _persist_trends(engine, analysis_id: UUID, brands: list[_BrandCtx], parsed) -> None:
+    """Store Trends points under the brand each keyword names (one call covers several)."""
     if parsed.trends is None:
         return
+    by_keyword = {_norm_name(b.name): b.id for b in brands}
     rows = []
     for point in parsed.trends.points:
         # Trend date labels can be human-readable; timestamp is the stable source when present.
-        import datetime as dt
-
         if point.timestamp is not None:
-            d = dt.datetime.fromtimestamp(point.timestamp, tz=UTC).date()
+            d = datetime.fromtimestamp(point.timestamp, tz=UTC).date()
         else:
             try:
-                d = dt.date.fromisoformat(point.date_raw[:10])
+                d = date.fromisoformat(point.date_raw[:10])
             except ValueError:
                 continue
         for keyword, value in point.values.items():
-            if value is not None:
+            brand_id = by_keyword.get(_norm_name(keyword))
+            if value is not None and brand_id is not None:
                 rows.append(
                     {
                         "analysis_id": analysis_id,
@@ -111,6 +149,27 @@ def _persist_trends(engine, analysis_id: UUID, brand_id: UUID, parsed) -> None:
                 )
     if rows:
         TrendPointRepository(engine).add_many(rows)
+
+
+def _interest_series(engine, analysis_id: UUID, brand: _BrandCtx) -> list[tuple[date, int]]:
+    """Stored search-interest points for this brand's own keyword, oldest first."""
+    key = _norm_name(brand.name)
+    return [
+        (r.date, r.value)
+        for r in TrendPointRepository(engine).list_for_brand(analysis_id, brand.id)
+        if _norm_name(r.keyword) == key
+    ]
+
+
+def _interest_change(
+    engine, ctx: _RunContext, brand: _BrandCtx
+) -> float | None:
+    w = ctx.windows
+    return interest_change_pct(
+        _interest_series(engine, ctx.analysis_id, brand),
+        baseline=(w.baseline_start, w.baseline_end),
+        current=(w.current_start, w.current_end),
+    )
 
 
 def _analysis_items(engine, analysis_id: UUID, brand_id: UUID):
@@ -128,8 +187,23 @@ def _analysis_items(engine, analysis_id: UUID, brand_id: UUID):
         )
 
 
+def _brand_profile(brand: _BrandCtx, product: str | None) -> BrandProfile:
+    """Terms that make an item "about" this brand.
+
+    The analysed product belongs to the target brand only; a competitor is matched by its
+    name. The brands table stores no aliases, so none are passed.
+    """
+    products = (product,) if product and brand.role == BrandRole.target else ()
+    return BrandProfile(brand=brand.name, products=products, aliases=())
+
+
 def _analyze_brand(
-    engine, analysis_id: UUID, brand: Brand, category: str, analyzer
+    engine,
+    analysis_id: UUID,
+    brand: _BrandCtx,
+    category: str,
+    analyzer,
+    product: str | None = None,
 ) -> None:
     items = _analysis_items(engine, analysis_id, brand.id)
     if not items:
@@ -139,7 +213,7 @@ def _analyze_brand(
     pending = [item for item in items if item.id not in existing]
     if not pending:
         return
-    profile = BrandProfile(brand=brand.name, products=(), aliases=())
+    profile = _brand_profile(brand, product)
     texts = [ItemText(item.title, item.snippet) for item in pending]
     analyses = analyze_items(texts, profile, analyzer, category)
     from app.schemas.nlp import NewItemAnalysis
@@ -167,6 +241,7 @@ def _metric_rows(engine, analysis_id: UUID, brand_id: UUID) -> list[MetricItem]:
             .all()
         )
         # Item-level aspect rows are expanded into metric observations.
+        from app.db.models.content_analysis import ContentAnalysisRow
         from app.db.models.item_aspect import ItemAspectRow
 
         aspects = (
@@ -183,6 +258,14 @@ def _metric_rows(engine, analysis_id: UUID, brand_id: UUID) -> list[MetricItem]:
             .all()
         )
         by_content = {r.id: r for r in rows}
+        about_brand = {
+            cid: flag
+            for cid, flag in session.execute(
+                select(ContentAnalysisRow.content_id, ContentAnalysisRow.is_about_brand).where(
+                    ContentAnalysisRow.content_id.in_(list(by_content))
+                )
+            ).all()
+        }
         return [
             MetricItem(
                 window=by_content[a.content_id].window.value
@@ -192,7 +275,7 @@ def _metric_rows(engine, analysis_id: UUID, brand_id: UUID) -> list[MetricItem]:
                 aspect=a.aspect,
                 sentiment=a.sentiment.value,
                 negative_prob=float(a.negative_prob),
-                is_about_brand=True,
+                is_about_brand=about_brand.get(a.content_id, False),
                 growth_eligible=by_content[a.content_id].source_type.value
                 in {"web", "news"}
                 and by_content[a.content_id].date_confidence.value
@@ -203,7 +286,8 @@ def _metric_rows(engine, analysis_id: UUID, brand_id: UUID) -> list[MetricItem]:
         ]
 
 
-def _snapshot(engine, analysis: Analysis, brand: Brand) -> None:
+def _snapshot(engine, ctx: _RunContext, brand: _BrandCtx) -> None:
+    analysis_id = ctx.analysis_id
     from app.db.models.content_analysis import ContentAnalysisRow
     from app.db.models.item_aspect import ItemAspectRow
 
@@ -214,20 +298,22 @@ def _snapshot(engine, analysis: Analysis, brand: Brand) -> None:
                 ContentAnalysisRow, ContentAnalysisRow.content_id == ContentItemRow.id
             )
             .where(
-                ContentItemRow.analysis_id == analysis.id,
+                ContentItemRow.analysis_id == analysis_id,
                 ContentItemRow.brand_id == brand.id,
                 ContentItemRow.purpose == ContentPurpose.collection,
             )
         ).all()
-        current = [r for r, _ in rows if r.window is WindowKind.current]
-        baseline = [r for r, _ in rows if r.window is WindowKind.baseline]
-        current_rows = [(r, a) for r, a in rows if r.window is WindowKind.current]
+        # Only items that are about the brand count as mentions of it.
+        rows = [(r, a) for r, a in rows if a.is_about_brand]
+        current = [r for r, _ in rows if r.window == WindowKind.current]
+        baseline = [r for r, _ in rows if r.window == WindowKind.baseline]
+        current_rows = [(r, a) for r, a in rows if r.window == WindowKind.current]
         sentiments = Counter(a.sentiment.value for _, a in current_rows)
         cur_analysis = {r.id: a for r, a in current_rows}
         aspects = (
             session.execute(
                 select(ItemAspectRow).where(
-                    ItemAspectRow.content_id.in_([r.id for r in rows])
+                    ItemAspectRow.content_id.in_([r.id for r, _ in rows])
                 )
             )
             .scalars()
@@ -255,7 +341,7 @@ def _snapshot(engine, analysis: Analysis, brand: Brand) -> None:
                 }
             )
         topics = Counter(
-            t for r, a in rows if r.window is WindowKind.current for t in a.topics
+            t for r, a in rows if r.window == WindowKind.current for t in a.topics
         )
         source_mix = Counter(r.source_type.value for r in current)
         pos_pct = (
@@ -264,15 +350,16 @@ def _snapshot(engine, analysis: Analysis, brand: Brand) -> None:
         neg_pct = (
             sentiments["negative"] / len(current_rows) * 100 if current_rows else 0
         )
+        interest_change = _interest_change(engine, ctx, brand)
         health = compute_health(
             positive_pct=pos_pct,
             negative_pct=neg_pct,
             current_sample=len(current),
             baseline_sample=len(baseline),
-            interest_change_pct=None,
+            interest_change_pct=interest_change,
         )
         row = {
-            "analysis_id": analysis.id,
+            "analysis_id": analysis_id,
             "brand_id": brand.id,
             "sample_size": len(current),
             "baseline_sample_size": len(baseline),
@@ -294,38 +381,57 @@ def _snapshot(engine, analysis: Analysis, brand: Brand) -> None:
                 "trend": health.trend,
                 "formula_version": health.formula_version,
             },
-            "interest_change_pct": None,
+            "interest_change_pct": interest_change,
             "low_data": len(current) < 15,
         }
     BrandSnapshotRepository(engine).upsert(row)
 
 
 def run_analysis(analysis_id: UUID, settings: Settings) -> None:
-    engine = get_engine(settings.database_url or settings.database_url_direct)
-    with Session(engine) as session:
-        analysis = session.get(Analysis, analysis_id)
-        if analysis is None:
-            return
-        analysis.status = "running"
-        analysis.stage = "planning"
-        analysis.progress = 5
-        analysis.started_at = datetime.now(UTC)
-        session.commit()
-        brand_rows = _brands(session, analysis_id)
+    engine = None
+    try:
+        engine = get_engine(settings.database_url or settings.database_url_direct)
+        with Session(engine) as session:
+            analysis = session.get(Analysis, analysis_id)
+            if analysis is None:
+                return
+            analysis.status = "running"
+            analysis.stage = "planning"
+            analysis.progress = 5
+            analysis.started_at = datetime.now(UTC)
+            session.commit()
+            # Copy scalars while the session is open; the instance is expired and detached after.
+            ctx = _load_context(analysis)
+            brand_rows = _brands(session, analysis_id)
+    except Exception as exc:
+        logger.exception(
+            "analysis_pipeline_start_failed",
+            extra={"analysis_id": str(analysis_id), "error_type": type(exc).__name__},
+        )
+        if engine is not None:
+            try:
+                with Session(engine) as session, session.begin():
+                    analysis = session.get(Analysis, analysis_id)
+                    if analysis is not None and analysis.status in {"queued", "running"}:
+                        analysis.status = "failed"
+                        analysis.error = "Analysis failed during startup. Check server logs for details."
+                        analysis.finished_at = datetime.now(UTC)
+            except Exception:
+                logger.exception("analysis_pipeline_start_status_update_failed", extra={"analysis_id": str(analysis_id)})
+        return
     try:
         fetcher, cache, _quota = _make_fetcher(settings, engine)
-        windows = _window_set(analysis)
+        windows = ctx.windows
+        target_brand = next(b for b in brand_rows if b.role == BrandRole.target)
         plan = build_plan(
-            brand=brand_rows[0][0].name,
-            product=analysis.product,
-            competitors=[
-                b.name for b, ab in brand_rows if ab.role is BrandRole.competitor
-            ],
-            as_of_date=analysis.as_of_date,
-            period_days=analysis.period_days,
-            max_calls=analysis.serp_calls_budget,
+            brand=target_brand.name,
+            product=ctx.product,
+            competitors=[b.name for b in brand_rows if b.role == BrandRole.competitor],
+            as_of_date=windows.as_of_date,
+            period_days=windows.period_days,
+            max_calls=ctx.serp_calls_budget,
         )
-        budget = RunBudget(analysis.serp_calls_budget)
+        budget = RunBudget(ctx.serp_calls_budget)
         with Session(engine) as session:
             analysis = session.get(Analysis, analysis_id)
             analysis.stage = "collecting"
@@ -339,9 +445,7 @@ def run_analysis(analysis_id: UUID, settings: Settings) -> None:
             parsed = parse_response(call.spec, result.response, result.cache_key)
             if parsed.items:
                 brand_id = next(
-                    b.id
-                    for b, ab in brand_rows
-                    if b.name.casefold() == call.brand.casefold()
+                    b.id for b in brand_rows if b.name.casefold() == call.brand.casefold()
                 )
                 raw_repo.add_many(
                     RawItemContext(
@@ -354,12 +458,7 @@ def run_analysis(analysis_id: UUID, settings: Settings) -> None:
                     parsed.items,
                 )
             if parsed.trends:
-                brand_id = next(
-                    b.id
-                    for b, ab in brand_rows
-                    if b.name.casefold() == call.brand.casefold()
-                )
-                _persist_trends(engine, analysis_id, brand_id, parsed)
+                _persist_trends(engine, analysis_id, brand_rows, parsed)
         with Session(engine) as session:
             analysis = session.get(Analysis, analysis_id)
             analysis.serp_calls_used = collected.live_calls
@@ -401,13 +500,14 @@ def run_analysis(analysis_id: UUID, settings: Settings) -> None:
             analysis.progress = 55
             session.commit()
         analyzer = HFSentimentAnalyzer.from_settings(settings)
-        for brand, _ in brand_rows:
+        for brand in brand_rows:
             _analyze_brand(
                 engine,
                 analysis_id,
                 brand,
-                analysis.category or "consumer_electronics",
+                ctx.category,
                 analyzer,
+                ctx.product,
             )
         with Session(engine) as session:
             analysis = session.get(Analysis, analysis_id)
@@ -415,12 +515,15 @@ def run_analysis(analysis_id: UUID, settings: Settings) -> None:
             analysis.progress = 70
             session.commit()
         signal_repo = SignalRepository(engine)
-        for brand, role in brand_rows:
+        for brand in brand_rows:
             metric_rows = _metric_rows(engine, analysis_id, brand.id)
             aspects = sorted({m.aspect for m in metric_rows})
+            corroborated = trend_corroborated(_interest_change(engine, ctx, brand))
             signals = []
             for aspect in aspects:
-                candidate = detect_negative_spike(metric_rows, aspect)
+                candidate = detect_negative_spike(
+                    metric_rows, aspect, trend_corroborated=corroborated
+                )
                 if candidate:
                     signals.append(
                         {
@@ -441,7 +544,7 @@ def run_analysis(analysis_id: UUID, settings: Settings) -> None:
                             "signal_confidence": candidate.confidence,
                             "sources_count": candidate.sources_count,
                             "source_types": list(candidate.source_types),
-                            "trend_corroborated": False,
+                            "trend_corroborated": corroborated,
                         }
                     )
             if signals:
@@ -451,8 +554,8 @@ def run_analysis(analysis_id: UUID, settings: Settings) -> None:
             analysis.stage = "snapshotting"
             analysis.progress = 85
             session.commit()
-        for brand, _ in brand_rows:
-            _snapshot(engine, analysis, brand)
+        for brand in brand_rows:
+            _snapshot(engine, ctx, brand)
         with Session(engine) as session:
             analysis = session.get(Analysis, analysis_id)
             analysis.stage = "done"

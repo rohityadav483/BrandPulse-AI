@@ -11,24 +11,6 @@ config = context.config
 target_metadata = Base.metadata
 
 
-def include_object(object, name, type_, reflected, compare_to):
-    # llm_calls is maintained by the existing migration history but is
-    # intentionally excluded from Base.metadata.
-    if type_ == "table" and name == "llm_calls":
-        return False
-
-    # The llm_calls index is ignored along with its migration-owned table.
-    if type_ == "index" and name == "ix_llm_calls_analysis_created_at":
-        return False
-
-    # This FK exists in migration 0008/database but is intentionally not
-    # represented in the ORM model because the current metadata contract
-    # expects serp_usage to expose only its analysis_id FK.
-    return not (
-        type_ == "foreign_key_constraint" and name == "fk_serp_usage_investigation"
-    )
-
-
 def get_url() -> str:
     # `config.attributes["url"]` lets tests point at a throwaway database.
     url = config.attributes.get("url") or Settings().database_url_direct
@@ -47,7 +29,6 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
-        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -60,8 +41,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            include_object=include_object,
-        )
+            )
         with context.begin_transaction():
             context.run_migrations()
     engine.dispose()

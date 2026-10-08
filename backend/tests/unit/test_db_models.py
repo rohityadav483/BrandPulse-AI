@@ -35,6 +35,7 @@ def test_metadata_has_phase_5_and_7_tables():
         "investigations",
         "evidence",
         "recommendations",
+        "llm_calls",
     }
     assert Brand.__tablename__ == "brands"
     assert Analysis.__tablename__ == "analyses"
@@ -145,9 +146,12 @@ def test_serp_usage_columns_fk_and_constraints():
         "account_label",
         "created_at",
     }
-    (fk,) = table.foreign_keys
-    assert fk.target_fullname == "analyses.id" and fk.ondelete == "SET NULL"
-    assert not table.c.investigation_id.foreign_keys
+    fks = {fk.parent.name: fk for fk in table.foreign_keys}
+    assert set(fks) == {"analysis_id", "investigation_id"}
+    assert fks["analysis_id"].target_fullname == "analyses.id"
+    assert fks["analysis_id"].ondelete == "SET NULL"
+    assert fks["investigation_id"].target_fullname == "investigations.id"
+    assert fks["investigation_id"].ondelete == "SET NULL"
     assert {i.name for i in table.indexes} == {"ix_serp_usage_created_at"}
     assert {c.name for c in table.constraints if c.name} >= {
         "ck_serp_usage_credits_range",

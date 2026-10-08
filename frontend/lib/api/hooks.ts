@@ -5,6 +5,7 @@ import {
   getInvestigation,
   getSignal,
   getUsage,
+  investigateSignal,
   listInvestigationEvidence,
   listMentions,
 } from './client';
@@ -16,6 +17,7 @@ export const api = {
   getInvestigation,
   getSignal,
   getUsage,
+  investigateSignal,
   listInvestigationEvidence,
   listMentions,
 };

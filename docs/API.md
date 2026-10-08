@@ -365,7 +365,7 @@ Response:
 ```json
 { "investigation_id": "uuid", "status": "queued", "reused": false, "poll_url": "/api/v1/investigations/uuid" }
 ```
-Headers: `X-Access-Code` (required only when new SerpApi calls are needed).
+Headers: `X-Access-Code` (required for live runs when live SerpApi access is enabled).
 
 Errors: `404 not_found`, `403 live_access_required`, `409 signal_not_investigable`, `409 investigation_in_progress`, `409 live_data_disabled`, `429 rate_limited`, `429 serpapi_quota_low`.
 
@@ -577,7 +577,7 @@ The UI shows a small "live searches left this month" indicator from this endpoin
 ## 6. Contract workflow
 
 1. Change Pydantic schemas in `backend/app/schemas/api.py`.
-2. Run `scripts/export_openapi.py` → updates `contracts/openapi.json`.
+2. Run `backend/scripts/export_openapi.py` → updates `contracts/openapi.json`.
 3. Regenerate `frontend/lib/api/types.generated.ts` with `openapi-typescript`.
 4. Update `contracts/golden/samsung_battery.json` if shapes changed.
 5. CI fails if steps 2–3 leave a git diff or the golden fixture no longer validates against the schemas.

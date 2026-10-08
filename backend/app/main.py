@@ -14,6 +14,7 @@ from app.api.v1 import analyses, health, investigations, signals, usage
 from app.api.v1.errors import register_exception_handlers
 from app.config.settings import Settings, get_settings
 from app.db.session import dispose_engines
+from app.pipeline.jobs import reap_stale_jobs_safe
 from app.utils.logging_config import configure_logging, request_id_var
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         logger.info(
             "startup", extra={"version": __version__, "demo_mode": settings.demo_mode}
         )
+        # Recover analyses orphaned by a restart (no-op without a database).
+        reap_stale_jobs_safe(settings)
         yield
         dispose_engines()
         logger.info("shutdown")

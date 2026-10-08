@@ -35,7 +35,7 @@ Companion documents: `DATABASE.md`, `API.md`, `DEVELOPMENT_PLAN.md`, and (writte
 | 8 | Confidence is a **deterministic formula**. LLM never invents the number. | Defensible, testable. |
 | 9 | LLM may cite evidence IDs only. Backend validates IDs and drops uncited claims. | Kills hallucinated sources. |
 | 10 | Golden fixture (synthetic) now; real **demo bundle** exported from a live run later. | Frontend development, contract tests, demo fallback. |
-| 11 | Groq: one model via `GROQ_MODEL`, chosen by testing in Phase 7. Tasks: query generation, stance tagging, synthesis, recommendations, optional competitor suggestion. | Free tier. Minimal calls. |
+| 11 | Groq: one model via `GROQ_MODEL`. Current MVP uses it for synthesis/reasoning; investigation query templates and cached-evidence scoring remain deterministic and cache-safe. | Free tier. Minimal calls. |
 | 12 | NLP results reused across analyses by `(content_hash, analyzer_version)`. | Saves CPU time on repeated content. |
 | 13 | Cache keys use absolute window dates from a pinned `as_of_date`. | Relative "last 30 days" windows would change daily and miss the cache. |
 
@@ -87,7 +87,7 @@ brandpulse/
 ├── backend/
 │   ├── pyproject.toml  .env.example
 │   ├── alembic/versions/
-│   ├── scripts/   # record_serp_fixtures, probe_demo_signal, warm_demo_cache,
+│   ├── scripts/           # record_serp_fixtures, probe_demo_signal, warm_demo_cache,
 │   │              # export_openapi, export_demo_bundle, seed_demo, run_eval
 │   ├── app/
 │   │   ├── main.py
@@ -172,7 +172,7 @@ ContentItem (title + snippet)
 
 ### 5.2 Groq usage rules (free tier)
 
-- Used only in: `suggest_competitors` (only when none given), `generate_queries`, `tag_stance`, `synthesize`, `recommend`.
+- Used only where implemented: synthesis/reasoning and optional competitor suggestion. Investigation query templates and cached-evidence scoring are deterministic in the current MVP.
 - Budget: ≤ 6 calls per investigation normally, hard cap `LLM_MAX_CALLS_PER_INVESTIGATION` = 8 including retries.
 - Keep input small: snippets truncated (about 200 characters), at most about 30 evidence items per investigation, batches of 15–20 for stance tagging.
 - Concurrency 1. Honor `retry-after` on 429. Log every call in `llm_calls`.
@@ -194,8 +194,8 @@ Competitors: current-window snapshot only (no baseline), keeping their cost at 2
 ### 5.4 Investigation (fixed bounded pipeline)
 
 1. Groq proposes hypotheses and queries (validated, capped).
-2. SerpApi fetch under the investigation sub-budget (≤ 8 calls).
-3. Groq tags stance and relevance for each evidence item.
+2. Investigation MVP reuses existing cached content; it does not spend new SerpApi credits.
+3. Deterministic evidence scoring assigns stance/relevance; Groq synthesis is optional and evidence IDs are validated.
 4. `confidence.py` computes the score.
 5. `scope.py` computes the verdict.
 6. Groq writes summary and findings citing evidence IDs; backend validates.

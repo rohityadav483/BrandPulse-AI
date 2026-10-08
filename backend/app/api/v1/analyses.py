@@ -18,11 +18,11 @@ from app.db.models.brand import Brand
 from app.db.models.content_analysis import ContentAnalysisRow
 from app.db.models.content_item import ContentItemRow
 from app.db.models.item_aspect import ItemAspectRow
-from app.db.models.phase5 import BrandSnapshot, Signal
+from app.db.models.phase5 import BrandSnapshot, Signal, TrendPoint
 from app.db.repositories.serp_cache import SerpCacheRepository
 from app.db.repositories.serp_usage import SerpUsageRepository
 from app.db.session import get_engine
-from app.pipeline.jobs import start_analysis_job
+from app.pipeline.jobs import reap_stale_jobs_safe, start_analysis_job
 from app.schemas.api import *
 from app.schemas.domain import (
     AnalysisStatus,
@@ -60,6 +60,85 @@ def _engine(settings):
             "Database-backed analysis endpoints require DATABASE_URL.",
         )
     return get_engine(settings.database_url or settings.database_url_direct)
+
+
+def _has_db(settings) -> bool:
+    return bool(settings.database_url or settings.database_url_direct)
+
+
+def _demo_estimate(body: CreateAnalysisRequest, settings) -> EstimateAnalysisResponse:
+    """DEMO_MODE without a database: the plan is computed, every call is 'cached' (bundle)."""
+    plan = _plan(body, settings)
+    windows = plan.windows
+    limit = settings.serp_monthly_limit
+    return EstimateAnalysisResponse(
+        planned_calls=len(plan.calls),
+        cached_calls=len(plan.calls),
+        estimated_new_calls=0,
+        as_of_date=windows.as_of_date,
+        period=Period(
+            current_start=windows.current_start,
+            current_end=windows.current_end,
+            baseline_start=windows.baseline_start,
+            baseline_end=windows.baseline_end,
+        ),
+        serpapi=SerpapiQuota(
+            limit=limit, used=0, remaining=limit, reserve=settings.serp_monthly_reserve
+        ),
+        live_enabled=False,
+        needs_access_code=False,
+        can_run=True,
+        blocked_reason=None,
+    )
+
+
+def _demo_mentions(
+    brand_id: UUID | None,
+    aspect: str | None,
+    sentiment: Sentiment | None,
+    source_type: SourceType | None,
+    page: int,
+    page_size: int,
+) -> ListMentionsResponse:
+    """Mentions for the demo analysis, built from the bundle's evidence items."""
+    bundle_signal = section("signal_detail")
+    demo_aspect = str(bundle_signal.get("aspect", ""))
+    target_id = section("dashboard")["target"]["brand"]["id"]
+    items: list[MentionItem] = []
+    if brand_id is None or str(brand_id) == str(target_id):
+        for raw in section("evidence")["items"]:
+            src = Source.model_validate(raw["source"])
+            # Evidence that supports a negative spike is a negative mention.
+            mention_sentiment = (
+                Sentiment.negative if raw["stance"] == "supports" else Sentiment.neutral
+            )
+            if sentiment and mention_sentiment != sentiment:
+                continue
+            if source_type and src.source_type != source_type:
+                continue
+            if aspect and aspect != demo_aspect:
+                continue
+            items.append(
+                MentionItem(
+                    id=raw["id"],
+                    source=src,
+                    sentiment=mention_sentiment,
+                    aspects=[
+                        MentionAspect(
+                            aspect=demo_aspect,
+                            sentiment=mention_sentiment,
+                            clause=raw.get("note") or src.title,
+                        )
+                    ],
+                )
+            )
+    start = (page - 1) * page_size
+    return ListMentionsResponse(
+        items=items[start : start + page_size],
+        page=page,
+        page_size=page_size,
+        total=len(items),
+    )
 
 
 def _period(a: Analysis) -> Period:
@@ -123,6 +202,8 @@ def _plan(body: CreateAnalysisRequest, settings):
 def estimate_analysis(
     body: CreateAnalysisRequest, settings: SettingsDep
 ) -> EstimateAnalysisResponse:
+    if settings.demo_mode and not _has_db(settings):
+        return _demo_estimate(body, settings)
     plan = _plan(body, settings)
     cache = ResponseCache(
         SerpCacheRepository(_engine(settings)), ttl_hours=settings.serp_cache_ttl_hours
@@ -219,6 +300,7 @@ def create_analysis(
             "A valid X-Access-Code is required for new live searches.",
         )
     engine = _engine(settings)
+    reap_stale_jobs_safe(settings)
     windows = _plan(body, settings).windows
     with Session(engine) as session, session.begin():
 
@@ -422,6 +504,22 @@ def get_dashboard(id: AnalysisId, settings: SettingsDep) -> DashboardResponse:
             .order_by(Signal.signal_score.desc())
         ).all()
 
+        def search_interest(b, change_pct):
+            """Stored Trends series for this brand's own keyword; None without data."""
+            key = " ".join(b.name.split()).casefold()
+            points = [
+                SearchInterestPoint(date=tp.date, value=tp.value)
+                for tp in session.scalars(
+                    select(TrendPoint)
+                    .where(TrendPoint.analysis_id == aid, TrendPoint.brand_id == b.id)
+                    .order_by(TrendPoint.date)
+                ).all()
+                if " ".join(tp.keyword.split()).casefold() == key
+            ]
+            if not points:
+                return None
+            return SearchInterest(change_pct=change_pct, series=points)
+
         def brand_ref(b, role):
             return BrandRef(id=b.id, name=b.name, role=role)
 
@@ -448,7 +546,7 @@ def get_dashboard(id: AnalysisId, settings: SettingsDep) -> DashboardResponse:
             growth = _growth_sample(session, aid, b.id)
             health = HealthScores(**data.health)
             dist = SentimentDistribution(**data.sentiment_dist)
-            if role is BrandRole.target:
+            if role == BrandRole.target:
                 return TargetBlock(
                     brand=brand_ref(b, role),
                     sample_size=data.sample_size,
@@ -460,7 +558,7 @@ def get_dashboard(id: AnalysisId, settings: SettingsDep) -> DashboardResponse:
                     aspects=[AspectStat(**x) for x in data.aspect_scores],
                     topics=[TopicCount(**x) for x in data.topic_counts],
                     source_mix={SourceType(k): v for k, v in data.source_mix.items()},
-                    search_interest=None,
+                    search_interest=search_interest(b, data.interest_change_pct),
                 )
             return CompetitorBlock(
                 brand=brand_ref(b, role),
@@ -468,12 +566,12 @@ def get_dashboard(id: AnalysisId, settings: SettingsDep) -> DashboardResponse:
                 low_data=data.low_data,
                 sentiment=dist,
                 aspects=[AspectStat(**x) for x in data.aspect_scores],
-                search_interest=None,
+                search_interest=search_interest(b, data.interest_change_pct),
             )
 
-        target = next((b, ab) for b, ab in brand_rows if ab.role is BrandRole.target)
+        target = next((b, ab) for b, ab in brand_rows if ab.role == BrandRole.target)
         competitors = [
-            (b, ab) for b, ab in brand_rows if ab.role is BrandRole.competitor
+            (b, ab) for b, ab in brand_rows if ab.role == BrandRole.competitor
         ]
         warning = [Warning(**w) for w in (a.warnings or [])]
         sigs = [_signal_summary(s) for s in signals]
@@ -487,7 +585,7 @@ def get_dashboard(id: AnalysisId, settings: SettingsDep) -> DashboardResponse:
                 period=_period(a),
                 warnings=warning,
             ),
-            target=snap_block(*target),
+            target=snap_block(target[0], target[1].role),
             competitors=[snap_block(b, ab.role) for b, ab in competitors],
             signals=sigs,
         )
@@ -550,6 +648,8 @@ def list_mentions(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> ListMentionsResponse:
+    if settings.demo_mode and is_demo_id(id):
+        return _demo_mentions(brand_id, aspect, sentiment, source_type, page, page_size)
     try:
         aid = UUID(id)
     except ValueError:
